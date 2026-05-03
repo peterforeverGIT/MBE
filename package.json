@@ -1,7 +1,8 @@
 {
-  "name": "markov-bot",
+  "name": "mbe-markovbot",
   "version": "1.0.0",
-  "private": true,
+  "main": "MarkovBot.js",
+  "type": "commonjs",
   "scripts": {
     "start": "node MarkovBot.js"
   },
