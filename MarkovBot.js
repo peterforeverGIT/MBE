@@ -181,32 +181,42 @@ function send(ws, content, parent) {
 function handle(ws, text, sender, parent, room) {
   const lower = text.toLowerCase();
 
-  if (lower === "!ping") {
-    send(ws, "pong", parent);
-    return true;
-  }
-
+  // 1. HELP FIRST (highest priority)
   if (lower.startsWith("!help")) {
     send(
       ws,
-      "MarkovBot (transformer-lite)\n!markov [text]\n!ping\n/send [thread|null] [msg]\n75% sentence continuation enabled\nMade by peterforever",
+      "MarkovBot (transformer-lite)\n!markov [text]\n!ping\n/send [thread|null] [msg]\nMade by peterforever",
       parent
     );
     return true;
   }
 
-  if (lower.startsWith("!markov") || lower.includes("@markovbot")) {
-    const seed = text
-      .replace(/!markov/i, "")
-      .replace(/@markovbot/i, "")
-      .trim();
+  // 2. PING
+  if (lower === "!ping") {
+    send(ws, "pong", parent);
+    return true;
+  }
 
-    if (!seed) return true;
+  // 3. MARKOV ONLY IF REAL SEED EXISTS
+  if (lower.startsWith("!markov")) {
+    const seed = text.replace(/!markov/i, "").trim();
+    if (!seed) return true; // stop silently instead of error
 
     const reply = generate(seed, sender);
     send(ws, reply, parent);
+    return true;
+  }
 
-    log(room, "THREAD:", parent, "| reply:", reply);
+  // 4. MENTION TRIGGER (SAFE)
+  if (lower.includes("@markovbot")) {
+    const cleaned = text.replace(/@markovbot/i, "").trim();
+    if (cleaned.split(/\s+/).length < 2) {
+      send(ws, "need more context", parent);
+      return true;
+    }
+
+    const reply = generate(cleaned, sender);
+    send(ws, reply, parent);
     return true;
   }
 
