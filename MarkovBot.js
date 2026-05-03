@@ -63,15 +63,20 @@ function migrate(oldBrain) {
 }
 
 function load() {
-  if (!fs.existsSync(SAVE_FILE)) return;
+  // Only load from SAVE_DIR (Download folder), never from local .json
+  if (!fs.existsSync(SAVE_FILE)) {
+    log("No save file found, starting fresh");
+    return;
+  }
 
   try {
     const data = JSON.parse(fs.readFileSync(SAVE_FILE, "utf8"));
     if (data.brain) brain = migrate(data.brain);
     if (data.roomState) roomState = data.roomState;
-    log("Loaded brain");
+    log("Loaded brain from:", SAVE_FILE);
   } catch (e) {
     console.error("LOAD ERROR:", e);
+    log("WARNING: Falling back to empty brain");
   }
 }
 
@@ -181,8 +186,8 @@ function send(ws, content, parent) {
 function handle(ws, text, sender, parent, room) {
   const lower = text.toLowerCase();
 
-  // 1. HELP FIRST (highest priority)
-  if (lower.startsWith("!help")) {
+  // 1. HELP FIRST (highest priority) - bypass word count check
+  if (lower.startsWith("!help") || lower.includes("@markovbot") && lower.includes("help")) {
     send(
       ws,
       "MarkovBot (transformer-lite)\n!markov [text]\n!ping\n/send [thread|null] [msg]\nMade by peterforever",
@@ -207,11 +212,17 @@ function handle(ws, text, sender, parent, room) {
     return true;
   }
 
-  // 4. MENTION TRIGGER (SAFE)
+  // 4. MENTION TRIGGER (SAFE) - bypass word count check for @markovbot
   if (lower.includes("@markovbot")) {
     const cleaned = text.replace(/@markovbot/i, "").trim();
-    if (cleaned.split(/\s+/).length < 2) {
-      send(ws, "need more context", parent);
+    
+    // If just @markovbot with no args, respond with help instead of error
+    if (!cleaned || cleaned.split(/\s+/).length < 2) {
+      send(
+        ws,
+        "MarkovBot (transformer-lite)\n!markov [text]\n!ping\n/send [thread|null] [msg]\nMade by peterforever",
+        parent
+      );
       return true;
     }
 
