@@ -9,7 +9,7 @@ cd "$(dirname "$0")"
 tmux has-session -t $SESSION 2>/dev/null
 
 if [ $? != 0 ]; then
-  tmux new-session -d -s $SESSION "node index.js"
+  tmux new-session -d -s $SESSION "node MarkovBot.js"
   echo "Started MarkovBot in tmux session: $SESSION"
 else
   echo "Session already running: $SESSION"
