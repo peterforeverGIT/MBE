@@ -42,46 +42,32 @@ function convertLegacyBrain(old) {
   return out;
 }
 
-function writeSaveFile(data) {
-  const temp = SAVE_FILE + ".tmp";
-  fs.writeFileSync(temp, JSON.stringify(data, null, 2));
-  fs.renameSync(temp, SAVE_FILE);
-}
-
 function saveAll() {
   try {
-    writeSaveFile({
-      brain,
-      rooms: Object.keys(sockets),
-      roomState,
-    });
+    fs.writeFileSync(
+      SAVE_FILE,
+      JSON.stringify({ brain, roomState }, null, 2)
+    );
+    console.log("Saved brain size:", Object.keys(brain[2]).length);
   } catch (e) {
-    console.error(e);
+    console.error("SAVE FAILED:", e);
   }
 }
 
 function loadSave() {
-  if (!fs.existsSync(SAVE_FILE)) {
-    log("No save file found, creating a new one.");
-    saveAll();
-    return DEFAULT_ROOMS.slice();
-  }
+  if (!fs.existsSync(SAVE_FILE)) return;
 
   try {
     const data = JSON.parse(fs.readFileSync(SAVE_FILE, "utf8"));
 
-    brain = convertLegacyBrain(data.brain || {});
+    brain = data.brain || { 2: {}, 3: {}, 4: {} };
     roomState = data.roomState || {};
+
     ensureBrain();
 
-    log("Loaded save file.");
-
-    return Array.isArray(data.rooms) && data.rooms.length
-      ? data.rooms
-      : DEFAULT_ROOMS.slice();
+    console.log("Loaded brain:", Object.keys(brain[2] || {}).length);
   } catch (e) {
-    console.error("Failed to load save file:", e);
-    return DEFAULT_ROOMS.slice();
+    console.error("LOAD FAILED:", e);
   }
 }
 
