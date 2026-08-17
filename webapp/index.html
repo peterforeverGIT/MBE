@@ -237,7 +237,7 @@
 
                 // Bot responses
                 if (lowerText === '!help' || (isMentioned && lowerText.indexOf('!help') !== -1)) {
-                    ws.send(JSON.stringify({ type: 'send', data: { content: "markovbot n-gram (1-4) | maker: peterforever + gemini | !help, !ping, !markov [seed words]", parent: data.id }}));
+                    ws.send(JSON.stringify({ type: 'send', data: { content: "markovbot, a markov chain bot, n-gram (1-4) | maker: @peterforever + vibe coded with: gemini/deepseek | !help, !ping, !markov [seed words]", parent: data.id }}));
                 }
                 else if (lowerText === '!ping' || (isMentioned && lowerText.indexOf('!ping') !== -1)) {
                     ws.send(JSON.stringify({ type: 'send', data: { content: "pong! ?", parent: data.id }}));
