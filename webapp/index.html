@@ -28,7 +28,7 @@
 <body>
 
 <div class="container">
-    <h3>? Global Connection Log</h3>
+    <h3>🌐 Global Connection Log</h3>
     <div id="globalLog"></div>
 
     <div class="controls">
@@ -46,7 +46,7 @@
     </div>
 
     <div class="controls" style="margin-top:20px;">
-        <strong>? Brain Management (Text-Based JSON):</strong>
+        <strong>🧠 Brain Management (Text-Based JSON):</strong>
         <textarea id="brainText" rows="2"></textarea>
         <button onclick="exportBrain()">Show Current Brain</button>
         <button onclick="importBrain()">Apply Text to Brain</button>
@@ -56,11 +56,58 @@
 </div>
 
 <script>
-    // Brain stores n?grams for n=1..4
+    // Brain stores n-grams for n=1..4
     var brain = { 1: {}, 2: {}, 3: {}, 4: {} };
     var connections = {};
     var BOT_NAME = 'markovbot';
     var activeTab = null;
+
+    // ---------- LOCALSTORAGE PERSISTENCE (NEW) ----------
+    function saveBrain() {
+        try {
+            localStorage.setItem('markov_brain', JSON.stringify(brain));
+        } catch(e) {
+            gLog("⚠️ Failed to save brain: " + e);
+        }
+    }
+
+    function loadBrain() {
+        try {
+            var data = localStorage.getItem('markov_brain');
+            if (data) {
+                brain = JSON.parse(data);
+                gLog("🧠 Brain loaded from local storage.");
+            }
+        } catch(e) {
+            gLog("⚠️ Failed to load brain: " + e);
+        }
+    }
+
+    function saveRooms() {
+        try {
+            var rooms = Object.keys(connections);
+            localStorage.setItem('markov_rooms', JSON.stringify(rooms));
+        } catch(e) {
+            gLog("⚠️ Failed to save rooms: " + e);
+        }
+    }
+
+    function loadRooms() {
+        try {
+            var data = localStorage.getItem('markov_rooms');
+            if (data) {
+                var rooms = JSON.parse(data);
+                rooms.forEach(function(room) {
+                    if (!connections[room]) {
+                        addRoom(room);
+                    }
+                });
+            }
+        } catch(e) {
+            gLog("⚠️ Failed to load rooms: " + e);
+        }
+    }
+    // ---------- END PERSISTENCE ----------
 
     function gLog(msg) {
         var entry = document.createElement('div');
@@ -80,7 +127,7 @@
         }
     }
 
-    // ---------- N?GRAM (1¨C4) WITH DUMB BACKOFF ----------
+    // ---------- N-GRAM (1-4) WITH DUMB BACKOFF ----------
     function train(text) {
         if (!text) return;
         var words = text.toLowerCase().trim().split(/\s+/);
@@ -95,6 +142,8 @@
                 brain[n][key].push(next);
             }
         }
+        // --- NEW: Auto-save brain after learning ---
+        saveBrain();
     }
 
     function generate(seedText) {
@@ -141,10 +190,15 @@
             connections[roomName].close();
             delete connections[roomName];
         }
-        document.getElementById('btn-' + roomName).remove();
-        document.getElementById('term-' + roomName).remove();
+        var btn = document.getElementById('btn-' + roomName);
+        if (btn) btn.remove();
+        var term = document.getElementById('term-' + roomName);
+        if (term) term.remove();
         gLog("Closed terminal for &" + roomName);
         
+        // --- NEW: Save room list ---
+        saveRooms();
+
         var remaining = Object.keys(connections);
         if (remaining.length > 0) switchTab(remaining[0]);
     }
@@ -170,10 +224,13 @@
             connectToRoom(r);
             switchTab(r);
             if (!roomName) document.getElementById('newRoom').value = "";
+
+            // --- NEW: Save room list ---
+            saveRooms();
         }
     }
 
-    // ---------- WEBSOCKET CONNECTION (with documented handshake) ----------
+    // ---------- WEBSOCKET CONNECTION ----------
     function connectToRoom(roomName) {
         var ws = new WebSocket('wss://euphoria.leet.nu/room/' + roomName + '/ws');
         ws.manualClose = false;
@@ -199,15 +256,12 @@
             if (packet.type === 'snapshot-event') {
                 ready = true;
                 roomLog(roomName, "--- Room snapshot received (bot ready) ---");
-                // Optionally train on the log messages (packet.data.log)
-                // For simplicity we just ignore
                 return;
             }
 
-            // 3. Handle bounce-event (private room ¨C not expected but we log)
+            // 3. Handle bounce-event (private room)
             if (packet.type === 'bounce-event') {
-                roomLog(roomName, "?? Room requires authentication ¨C use auth/login command.");
-                // In a full implementation you would prompt for credentials
+                roomLog(roomName, "⚠️ Room requires authentication – use auth/login command.");
                 return;
             }
 
@@ -231,7 +285,7 @@
 
                 // Only respond if ready (snapshot received)
                 if (!ready) {
-                    roomLog(roomName, "?? Not ready yet ¨C waiting for snapshot.");
+                    roomLog(roomName, "⏳ Not ready yet – waiting for snapshot.");
                     return;
                 }
 
@@ -240,7 +294,7 @@
                     ws.send(JSON.stringify({ type: 'send', data: { content: "markovbot, a markov chain bot, n-gram (1-4) | maker: @peterforever + vibe coded with: gemini/deepseek | !help, !ping, !markov [seed words]", parent: data.id }}));
                 }
                 else if (lowerText === '!ping' || (isMentioned && lowerText.indexOf('!ping') !== -1)) {
-                    ws.send(JSON.stringify({ type: 'send', data: { content: "pong! ?", parent: data.id }}));
+                    ws.send(JSON.stringify({ type: 'send', data: { content: "pong! 🏓", parent: data.id }}));
                 }
                 else if (lowerText.indexOf('!markov') === 0 || isMentioned) {
                     var seed = lowerText.replace('!markov', '').replace('@' + BOT_NAME, '').trim();
@@ -254,7 +308,6 @@
         ws.onclose = function() {
             if (!ws.manualClose) {
                 gLog("Connection lost for &" + roomName + ". Retrying in 5s...");
-                // Manual redo of handshake: simply call connectToRoom again after delay
                 setTimeout(function() { connectToRoom(roomName); }, 5000);
             }
         };
@@ -270,14 +323,28 @@
     function importBrain() {
         try {
             brain = JSON.parse(document.getElementById('brainText').value);
-            gLog("Brain updated.");
+            // --- NEW: Save imported brain to localStorage ---
+            saveBrain();
+            gLog("🧠 Brain updated and saved to localStorage.");
         } catch(e) {
             alert("Invalid JSON!");
         }
     }
 
-    // Start with a default room
-    addRoom('test');
+    // ---------- INITIALIZATION (MODIFIED) ----------
+    // 1. Load saved brain from localStorage
+    loadBrain();
+
+    // 2. Try to restore previous rooms
+    var savedRooms = localStorage.getItem('markov_rooms');
+    if (savedRooms) {
+        loadRooms();
+    }
+
+    // 3. If no rooms are connected after restoring (or first visit), add default 'test'
+    if (Object.keys(connections).length === 0) {
+        addRoom('test');
+    }
 </script>
 </body>
 </html>
