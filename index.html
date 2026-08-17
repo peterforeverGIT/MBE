@@ -80,7 +80,7 @@
         }
     }
 
-    // ---------- N?GRAM (1每4) WITH DUMB BACKOFF ----------
+    // ---------- N?GRAM (1穡C4) WITH DUMB BACKOFF ----------
     function train(text) {
         if (!text) return;
         var words = text.toLowerCase().trim().split(/\s+/);
@@ -204,9 +204,9 @@
                 return;
             }
 
-            // 3. Handle bounce-event (private room 每 not expected but we log)
+            // 3. Handle bounce-event (private room 穡C not expected but we log)
             if (packet.type === 'bounce-event') {
-                roomLog(roomName, "?? Room requires authentication 每 use auth/login command.");
+                roomLog(roomName, "?? Room requires authentication 穡C use auth/login command.");
                 // In a full implementation you would prompt for credentials
                 return;
             }
@@ -231,7 +231,7 @@
 
                 // Only respond if ready (snapshot received)
                 if (!ready) {
-                    roomLog(roomName, "?? Not ready yet 每 waiting for snapshot.");
+                    roomLog(roomName, "?? Not ready yet 穡C waiting for snapshot.");
                     return;
                 }
 
