@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>MarkovBot Multi-Terminal Manager</title>
+    <style>
+        body { font-family: sans-serif; background: #1a1a1a; color: #dcdcdc; padding: 15px; font-size: 13px; margin: 0; }
+        .container { max-width: 1000px; margin: auto; }
+        
+        /* Global Log Style */
+        #globalLog { background: #000; border: 1px solid #444; height: 120px; overflow-y: scroll; padding: 8px; font-family: monospace; font-size: 11px; margin-bottom: 10px; border-radius: 4px; color: #aaa; }
+        
+        .controls { background: #2a2a2a; padding: 15px; border-radius: 8px; border: 1px solid #444; margin-bottom: 10px; }
+        
+        /* Tab System */
+        .tabs { display: flex; overflow-x: auto; background: #333; border-radius: 5px 5px 0 0; border: 1px solid #444; border-bottom: none; }
+        .tab-btn { padding: 10px 20px; background: none; border: none; color: #fff; cursor: pointer; border-right: 1px solid #444; }
+        .tab-btn.active { background: #444; color: #00ff00; font-weight: bold; }
+        .tab-content { background: #000; border: 1px solid #444; height: 350px; overflow-y: scroll; padding: 10px; font-family: monospace; border-radius: 0 0 5px 5px; color: #00ff00; }
+        
+        input, textarea { width: 100%; background: #000; color: #00ff00; border: 1px solid #555; padding: 8px; margin: 5px 0; box-sizing: border-box; }
+        button { background: #0066cc; color: white; border: none; padding: 8px 12px; cursor: pointer; font-weight: bold; border-radius: 4px; }
+        .btn-red { background: #cc0000; margin-left: 10px; padding: 4px 8px; font-size: 10px; }
+        .maker-tag { font-size: 11px; color: #777; text-align: center; display: block; margin-top: 20px; font-style: italic; }
+        .chat-line { margin-bottom: 4px; border-bottom: 1px solid #111; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h3>? Global Connection Log</h3>
+    <div id="globalLog"></div>
+
+    <div class="controls">
+        <div style="display:flex; gap: 5px;">
+            <input type="text" id="newRoom" placeholder="Enter room name (e.g. test)">
+            <button onclick="addRoom()">Connect & Open Terminal</button>
+        </div>
+    </div>
+
+    <div class="tabs" id="tabBar">
+        <!-- Tabs will appear here -->
+    </div>
+    <div id="terminalContainer">
+        <!-- Terminals will appear here -->
+    </div>
+
+    <div class="controls" style="margin-top:20px;">
+        <strong>? Brain Management (Text-Based JSON):</strong>
+        <textarea id="brainText" rows="2"></textarea>
+        <button onclick="exportBrain()">Show Current Brain</button>
+        <button onclick="importBrain()">Apply Text to Brain</button>
+    </div>
+
+    <span class="maker-tag">Maker: peterforever + gemini</span>
+</div>
+
+<script>
+    // Brain stores n?grams for n=1..4
+    var brain = { 1: {}, 2: {}, 3: {}, 4: {} };
+    var connections = {};
+    var BOT_NAME = 'markovbot';
+    var activeTab = null;
+
+    function gLog(msg) {
+        var entry = document.createElement('div');
+        entry.textContent = '[' + new Date().toLocaleTimeString() + '] ' + msg;
+        document.getElementById('globalLog').appendChild(entry);
+        document.getElementById('globalLog').scrollTop = document.getElementById('globalLog').scrollHeight;
+    }
+
+    function roomLog(roomName, msg) {
+        var term = document.getElementById('term-' + roomName);
+        if (term) {
+            var entry = document.createElement('div');
+            entry.className = 'chat-line';
+            entry.textContent = '[' + new Date().toLocaleTimeString() + '] ' + msg;
+            term.appendChild(entry);
+            term.scrollTop = term.scrollHeight;
+        }
+    }
+
+    // ---------- N?GRAM (1每4) WITH DUMB BACKOFF ----------
+    function train(text) {
+        if (!text) return;
+        var words = text.toLowerCase().trim().split(/\s+/);
+        words.push("."); // sentence terminator
+        if (words.length < 2) return; // need at least one word + terminator
+
+        for (var n = 1; n <= 4; n++) {
+            for (var i = 0; i <= words.length - n - 1; i++) {
+                var key = words.slice(i, i + n).join(' ');
+                var next = words[i + n];
+                if (!brain[n][key]) brain[n][key] = [];
+                brain[n][key].push(next);
+            }
+        }
+    }
+
+    function generate(seedText) {
+        var seedWords = seedText.toLowerCase().trim().split(/\s+/);
+        if (seedWords.length === 0) return "give me some words to start with.";
+
+        var result = seedWords.slice(); // copy
+        for (var i = 0; i < 50; i++) {
+            var found = false;
+            var maxN = Math.min(4, result.length);
+            for (var n = maxN; n >= 1; n--) {
+                var key = result.slice(result.length - n).join(' ');
+                if (brain[n][key] && brain[n][key].length > 0) {
+                    var options = brain[n][key];
+                    var next = options[Math.floor(Math.random() * options.length)];
+                    if (next === ".") {
+                        return result.join(' '); // end of sentence
+                    }
+                    result.push(next);
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) break; // no continuation found
+        }
+        return result.join(' ');
+    }
+
+    // ---------- ROOM TERMINAL MANAGEMENT ----------
+    function switchTab(roomName) {
+        activeTab = roomName;
+        var buttons = document.getElementsByClassName('tab-btn');
+        for (var i=0; i<buttons.length; i++) buttons[i].classList.remove('active');
+        document.getElementById('btn-' + roomName).classList.add('active');
+
+        var contents = document.getElementsByClassName('tab-content');
+        for (var i=0; i<contents.length; i++) contents[i].style.display = 'none';
+        document.getElementById('term-' + roomName).style.display = 'block';
+    }
+
+    function removeRoom(roomName) {
+        if (connections[roomName]) {
+            connections[roomName].manualClose = true;
+            connections[roomName].close();
+            delete connections[roomName];
+        }
+        document.getElementById('btn-' + roomName).remove();
+        document.getElementById('term-' + roomName).remove();
+        gLog("Closed terminal for &" + roomName);
+        
+        var remaining = Object.keys(connections);
+        if (remaining.length > 0) switchTab(remaining[0]);
+    }
+
+    function addRoom(roomName) {
+        var r = roomName || document.getElementById('newRoom').value.replace('&', '').trim();
+        if (r && !connections[r]) {
+            // Create Tab Button
+            var btn = document.createElement('button');
+            btn.className = 'tab-btn';
+            btn.id = 'btn-' + r;
+            btn.innerHTML = '&' + r + ' <span class="btn-red" onclick="removeRoom(\''+r+'\'); event.stopPropagation();">X</span>';
+            btn.onclick = function() { switchTab(r); };
+            document.getElementById('tabBar').appendChild(btn);
+
+            // Create Terminal Content
+            var term = document.createElement('div');
+            term.className = 'tab-content';
+            term.id = 'term-' + r;
+            term.style.display = 'none';
+            document.getElementById('terminalContainer').appendChild(term);
+
+            connectToRoom(r);
+            switchTab(r);
+            if (!roomName) document.getElementById('newRoom').value = "";
+        }
+    }
+
+    // ---------- WEBSOCKET CONNECTION (with documented handshake) ----------
+    function connectToRoom(roomName) {
+        var ws = new WebSocket('wss://euphoria.leet.nu/room/' + roomName + '/ws');
+        ws.manualClose = false;
+        var ready = false; // set to true after snapshot-event
+
+        ws.onopen = function() {
+            gLog("Successfully connected to &" + roomName);
+            roomLog(roomName, "--- TERMINAL OPENED: BOT ONLINE ---");
+            // Send nick immediately (as per example)
+            ws.send(JSON.stringify({ type: 'nick', data: { name: BOT_NAME } }));
+        };
+
+        ws.onmessage = function(e) {
+            var packet = JSON.parse(e.data);
+            
+            // 1. Always reply to ping-event
+            if (packet.type === 'ping-event') {
+                ws.send(JSON.stringify({ type: 'ping-reply', data: { time: packet.data.time } }));
+                return;
+            }
+
+            // 2. Handle snapshot-event (room joined successfully)
+            if (packet.type === 'snapshot-event') {
+                ready = true;
+                roomLog(roomName, "--- Room snapshot received (bot ready) ---");
+                // Optionally train on the log messages (packet.data.log)
+                // For simplicity we just ignore
+                return;
+            }
+
+            // 3. Handle bounce-event (private room 每 not expected but we log)
+            if (packet.type === 'bounce-event') {
+                roomLog(roomName, "?? Room requires authentication 每 use auth/login command.");
+                // In a full implementation you would prompt for credentials
+                return;
+            }
+
+            // 4. Handle send-event (incoming message)
+            if (packet.type === 'send-event') {
+                var data = packet.data;
+                var text = data.content;
+                var sender = data.sender.name.toLowerCase();
+                if (sender === BOT_NAME) return;
+
+                var lowerText = text.toLowerCase();
+                var isMentioned = (lowerText.indexOf('@' + BOT_NAME) !== -1);
+
+                // Train on every message except !markov commands
+                if (lowerText.indexOf('!markov') !== 0) {
+                    train(text);
+                    roomLog(roomName, "Learned from " + sender + ": " + text);
+                } else {
+                    roomLog(roomName, sender + " used command: " + text);
+                }
+
+                // Only respond if ready (snapshot received)
+                if (!ready) {
+                    roomLog(roomName, "?? Not ready yet 每 waiting for snapshot.");
+                    return;
+                }
+
+                // Bot responses
+                if (lowerText === '!help' || (isMentioned && lowerText.indexOf('!help') !== -1)) {
+                    ws.send(JSON.stringify({ type: 'send', data: { content: "markovbot n-gram (1-4) | maker: peterforever + gemini | !help, !ping, !markov [seed words]", parent: data.id }}));
+                }
+                else if (lowerText === '!ping' || (isMentioned && lowerText.indexOf('!ping') !== -1)) {
+                    ws.send(JSON.stringify({ type: 'send', data: { content: "pong! ?", parent: data.id }}));
+                }
+                else if (lowerText.indexOf('!markov') === 0 || isMentioned) {
+                    var seed = lowerText.replace('!markov', '').replace('@' + BOT_NAME, '').trim();
+                    var reply = generate(seed);
+                    ws.send(JSON.stringify({ type: 'send', data: { content: reply, parent: data.id }}));
+                    roomLog(roomName, "REPLIED: " + reply);
+                }
+            }
+        };
+
+        ws.onclose = function() {
+            if (!ws.manualClose) {
+                gLog("Connection lost for &" + roomName + ". Retrying in 5s...");
+                // Manual redo of handshake: simply call connectToRoom again after delay
+                setTimeout(function() { connectToRoom(roomName); }, 5000);
+            }
+        };
+
+        connections[roomName] = ws;
+    }
+
+    // ---------- BRAIN MANAGEMENT ----------
+    function exportBrain() {
+        document.getElementById('brainText').value = JSON.stringify(brain);
+    }
+
+    function importBrain() {
+        try {
+            brain = JSON.parse(document.getElementById('brainText').value);
+            gLog("Brain updated.");
+        } catch(e) {
+            alert("Invalid JSON!");
+        }
+    }
+
+    // Start with a default room
+    addRoom('test');
+</script>
+</body>
+</html>
