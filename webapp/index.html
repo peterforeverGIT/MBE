@@ -8,7 +8,7 @@
         .container { max-width: 1000px; margin: auto; }
         
         /* Global Log Style */
-        #globalLog { background: #000; border: 1px solid #444; height: 120px; overflow-y: scroll; padding: 8px; font-family: monospace; font-size: 11px; margin-bottom: 10px; border-radius: 4px; color: #aaa; }
+        #globalLog { background: #000; border: 1px solid #444; height: 120px; overflow-y: scroll; padding: 8px; font-family: monospace; font-size: 11px; margin-bottom: 10px; border-radius: 4px; color:#dcdcdc }
         
         .controls { background: #2a2a2a; padding: 15px; border-radius: 8px; border: 1px solid #444; margin-bottom: 10px; }
         
@@ -23,6 +23,15 @@
         .btn-red { background: #cc0000; margin-left: 10px; padding: 4px 8px; font-size: 10px; }
         .maker-tag { font-size: 11px; color: #777; text-align: center; display: block; margin-top: 20px; font-style: italic; }
         .chat-line { margin-bottom: 4px; border-bottom: 1px solid #111; }
+
+        /* Notify panel styles (similar to tab-content but separate UI inside) */
+        .notify-controls { padding: 10px; border-bottom: 1px solid #333; display:flex; gap:8px; align-items:center; }
+        .notify-list { height: 200px; overflow-y: auto; background: #0b0b0b; border-top: 1px solid #222; padding: 8px; font-family: monospace; font-size: 12px; }
+        .notify-item { padding: 6px; border-bottom: 1px solid #111; cursor: pointer; }
+        .notify-item.selected { background: rgba(0,255,0,0.06); }
+        .notify-meta { color: #999; font-size: 11px; }
+        .notify-reply { margin-top: 8px; }
+        .small { font-size: 11px; padding: 6px; }
     </style>
 </head>
 <body>
@@ -40,9 +49,27 @@
 
     <div class="tabs" id="tabBar">
         <!-- Tabs will appear here -->
+        <button class="tab-btn" id="btn-notify" onclick="switchTab('notify')">🔔 Notify</button>
     </div>
     <div id="terminalContainer">
         <!-- Terminals will appear here -->
+        <div class="tab-content" id="term-notify" style="display:none;">
+            <div class="notify-controls">
+                <label><input type="checkbox" id="notifyEnable"> Enable Notify</label>
+                <label style="margin-left:8px;"><input type="checkbox" id="notifyAutoScroll"> Auto-scroll</label>
+                <input type="text" id="notifyUsername" placeholder="Reply username" style="flex:1; max-width:220px; background:#000; color:#00ff00; border:1px solid #555; padding:6px;">
+                <button class="small" onclick="saveUsername()">Save</button>
+            </div>
+            <div id="notifyList" class="notify-list"></div>
+            <div class="notify-reply">
+                <div class="notify-meta">Selected: <span id="notifySelected">(none)</span></div>
+                <textarea id="notifyReplyText" rows="3" placeholder="Write your reply here..."></textarea>
+                <div style="display:flex; gap:8px; margin-top:6px;">
+                    <button onclick="sendReply()">Send Reply</button>
+                    <button class="btn-red" onclick="clearNotifyList()">Clear</button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <div class="controls" style="margin-top:20px;">
@@ -61,6 +88,14 @@
     var connections = {};
     var BOT_NAME = 'markovbot';
     var activeTab = null;
+
+    // Notify panel state (global across rooms)
+    var notifyEnabled = false;
+    var notifyAutoScroll = true;
+    var recentMessages = []; // {room, sender, text, id, ts}
+    var maxMessages = 200;
+    var selectedMessage = null;
+    var currentUserName = BOT_NAME; // default
 
     // ---------- LOCALSTORAGE PERSISTENCE (NEW) ----------
     function saveBrain() {
@@ -108,6 +143,63 @@
         }
     }
     // ---------- END PERSISTENCE ----------
+
+    // ---------- NOTIFY LOCALSTORAGE FOR COMPATIBILITY ----------
+    function loadUsername() {
+        try {
+            // Backward compatibility: check other possible keys
+            var keys = ['markov_username', 'markov_name', 'markov_nick'];
+            for (var i=0;i<keys.length;i++){
+                var k = keys[i];
+                var v = localStorage.getItem(k);
+                if (v) {
+                    currentUserName = v;
+                    break;
+                }
+            }
+            // finally check explicit saved username key
+            var explicit = localStorage.getItem('markov_username');
+            if (explicit) currentUserName = explicit;
+            document.getElementById('notifyUsername').value = currentUserName === BOT_NAME ? '' : currentUserName;
+
+            var auto = localStorage.getItem('markov_notify_autoscroll');
+            if (auto !== null) notifyAutoScroll = (auto === 'true');
+            document.getElementById('notifyAutoScroll').checked = notifyAutoScroll;
+
+            var en = localStorage.getItem('markov_notify_enable');
+            if (en !== null) notifyEnabled = (en === 'true');
+            document.getElementById('notifyEnable').checked = notifyEnabled;
+        } catch(e) {
+            gLog('⚠️ Failed to load username/notify prefs: ' + e);
+        }
+    }
+
+    function saveUsername() {
+        try {
+            var v = document.getElementById('notifyUsername').value.trim();
+            if (v.length === 0) {
+                // clearing username => use BOT_NAME as default
+                currentUserName = BOT_NAME;
+                localStorage.removeItem('markov_username');
+            } else {
+                currentUserName = v;
+                localStorage.setItem('markov_username', currentUserName);
+            }
+            gLog('Saved reply username: ' + currentUserName);
+        } catch(e) {
+            gLog('⚠️ Failed to save username: ' + e);
+        }
+    }
+
+    function saveNotifyPrefs() {
+        try {
+            localStorage.setItem('markov_notify_autoscroll', notifyAutoScroll ? 'true' : 'false');
+            localStorage.setItem('markov_notify_enable', notifyEnabled ? 'true' : 'false');
+        } catch(e) {
+            gLog('⚠️ Failed to save notify prefs: ' + e);
+        }
+    }
+    // ---------- END NOTIFY PERSISTENCE ----------
 
     function gLog(msg) {
         var entry = document.createElement('div');
@@ -177,11 +269,15 @@
         activeTab = roomName;
         var buttons = document.getElementsByClassName('tab-btn');
         for (var i=0; i<buttons.length; i++) buttons[i].classList.remove('active');
-        document.getElementById('btn-' + roomName).classList.add('active');
+        var btn = document.getElementById('btn-' + roomName);
+        if (btn) btn.classList.add('active');
+        else if (roomName === 'notify') document.getElementById('btn-notify').classList.add('active');
 
         var contents = document.getElementsByClassName('tab-content');
         for (var i=0; i<contents.length; i++) contents[i].style.display = 'none';
-        document.getElementById('term-' + roomName).style.display = 'block';
+        var t = document.getElementById('term-' + roomName);
+        if (t) t.style.display = 'block';
+        if (roomName === 'notify') document.getElementById('term-notify').style.display = 'block';
     }
 
     function removeRoom(roomName) {
@@ -270,6 +366,14 @@
                 var data = packet.data;
                 var text = data.content;
                 var sender = data.sender.name.toLowerCase();
+
+                // Add to notify list (global) for messages from others
+                try {
+                    if (text && sender !== BOT_NAME) {
+                        addMessageToNotifyList(roomName, data.sender.name, text, data.id);
+                    }
+                } catch(err) { /* non-fatal */ }
+
                 if (sender === BOT_NAME) return;
 
                 var lowerText = text.toLowerCase();
@@ -291,7 +395,7 @@
 
                 // Bot responses
                 if (lowerText === '!help' || (isMentioned && lowerText.indexOf('!help') !== -1)) {
-                    ws.send(JSON.stringify({ type: 'send', data: { content: "markovbot, a markov chain bot, n-gram (1-4) | maker: @peterforever + vibe coded with: gemini/deepseek | !help, !ping, !markov [seed words]", parent: data.id }}));
+                    ws.send(JSON.stringify({ type: 'send', data: { content: "markovbot, a markov chain bot, n-gram (1-4) | maker: @peterforever + vibe coded with: gemini/deepseek | !help, !ping, !markov" , parent: data.id }}));
                 }
                 else if (lowerText === '!ping' || (isMentioned && lowerText.indexOf('!ping') !== -1)) {
                     ws.send(JSON.stringify({ type: 'send', data: { content: "pong! 🏓", parent: data.id }}));
@@ -315,6 +419,75 @@
         connections[roomName] = ws;
     }
 
+    // ---------- NOTIFY LIST MANAGEMENT ----------
+    function addMessageToNotifyList(room, sender, text, id) {
+        if (!notifyEnabled) return;
+        var ts = Date.now();
+        recentMessages.unshift({room: room, sender: sender, text: text, id: id, ts: ts});
+        if (recentMessages.length > maxMessages) recentMessages.pop();
+        renderNotifyList();
+    }
+
+    function renderNotifyList() {
+        var el = document.getElementById('notifyList');
+        el.innerHTML = '';
+        recentMessages.forEach(function(m, idx) {
+            var item = document.createElement('div');
+            item.className = 'notify-item' + (selectedMessage && selectedMessage.idx === idx ? ' selected' : '');
+            item.onclick = function() { selectMessage(idx); };
+            item.innerHTML = '<div><strong>&' + m.room + '</strong> <span class="notify-meta">' + m.sender + ' • ' + new Date(m.ts).toLocaleTimeString() + '</span></div><div>' + escapeHtml(m.text) + '</div>';
+            el.appendChild(item);
+        });
+        if (notifyAutoScroll) el.scrollTop = el.scrollHeight;
+    }
+
+    function selectMessage(idx) {
+        selectedMessage = Object.assign({ idx: idx }, recentMessages[idx]);
+        document.getElementById('notifySelected').textContent = '&' + selectedMessage.room + ' / ' + selectedMessage.sender;
+        document.getElementById('notifyReplyText').value = '';
+        renderNotifyList();
+    }
+
+    function clearNotifyList() {
+        recentMessages = [];
+        selectedMessage = null;
+        document.getElementById('notifySelected').textContent = '(none)';
+        renderNotifyList();
+    }
+
+    function escapeHtml(s) {
+        if (!s) return '';
+        return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    function sendReply() {
+        if (!selectedMessage) { alert('Select a message first from the list.'); return; }
+        var text = document.getElementById('notifyReplyText').value.trim();
+        if (!text) { alert('Write a message to send.'); return; }
+        var room = selectedMessage.room;
+        var conn = connections[room];
+        if (!conn || conn.readyState !== WebSocket.OPEN) { alert('Connection for &' + room + ' is not open.'); return; }
+
+        // Determine username to use
+        var usr = document.getElementById('notifyUsername').value.trim();
+        if (!usr) usr = BOT_NAME;
+
+        // Temporarily change nick if different from BOT_NAME
+        try {
+            if (usr !== BOT_NAME) {
+                conn.send(JSON.stringify({ type: 'nick', data: { name: usr } }));
+            }
+            conn.send(JSON.stringify({ type: 'send', data: { content: text, parent: selectedMessage.id }}));
+            // revert to BOT_NAME to preserve bot behavior for commands
+            if (usr !== BOT_NAME) {
+                conn.send(JSON.stringify({ type: 'nick', data: { name: BOT_NAME } }));
+            }
+            gLog('Sent reply to &' + room + ' as ' + usr + ': ' + text);
+        } catch(e) {
+            gLog('⚠️ Failed to send reply: ' + e);
+        }
+    }
+
     // ---------- BRAIN MANAGEMENT ----------
     function exportBrain() {
         document.getElementById('brainText').value = JSON.stringify(brain);
@@ -334,6 +507,20 @@
     // ---------- INITIALIZATION (MODIFIED) ----------
     // 1. Load saved brain from localStorage
     loadBrain();
+
+    // Load username and notify prefs
+    loadUsername();
+
+    // Hook up notify toggles
+    document.addEventListener('DOMContentLoaded', function() {
+        var en = document.getElementById('notifyEnable');
+        var auto = document.getElementById('notifyAutoScroll');
+        en.checked = notifyEnabled;
+        auto.checked = notifyAutoScroll;
+        en.onchange = function() { notifyEnabled = en.checked; saveNotifyPrefs(); };
+        auto.onchange = function() { notifyAutoScroll = auto.checked; saveNotifyPrefs(); };
+        document.getElementById('notifyUsername').onchange = function() { /* lazy */ };
+    });
 
     // 2. Try to restore previous rooms
     var savedRooms = localStorage.getItem('markov_rooms');
