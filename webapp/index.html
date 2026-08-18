@@ -32,6 +32,7 @@
         .notify-meta { color: #999; font-size: 11px; }
         .notify-reply { margin-top: 8px; }
         .small { font-size: 11px; padding: 6px; }
+        .big { padding: 12px 18px; font-size: 14px; }
     </style>
 </head>
 <body>
@@ -49,13 +50,13 @@
 
     <div class="tabs" id="tabBar">
         <!-- Tabs will appear here -->
-        <button class="tab-btn" id="btn-notify" onclick="switchTab('notify')">🔔 Notify</button>
+        <button class="tab-btn" id="btn-notify" onclick="switchTab('notify')">💬 Direct Chat</button>
     </div>
     <div id="terminalContainer">
         <!-- Terminals will appear here -->
         <div class="tab-content" id="term-notify" style="display:none;">
             <div class="notify-controls">
-                <label><input type="checkbox" id="notifyEnable"> Enable Notify</label>
+                <label><input type="checkbox" id="notifyEnable"> Enable</label>
                 <label style="margin-left:8px;"><input type="checkbox" id="notifyAutoScroll"> Auto-scroll</label>
                 <input type="text" id="notifyUsername" placeholder="Reply username" style="flex:1; max-width:220px; background:#000; color:#00ff00; border:1px solid #555; padding:6px;">
                 <button class="small" onclick="saveUsername()">Save</button>
@@ -65,8 +66,12 @@
                 <div class="notify-meta">Selected: <span id="notifySelected">(none)</span></div>
                 <textarea id="notifyReplyText" rows="3" placeholder="Write your reply here..."></textarea>
                 <div style="display:flex; gap:8px; margin-top:6px;">
-                    <button onclick="sendReply()">Send Reply</button>
-                    <button class="btn-red" onclick="clearNotifyList()">Clear</button>
+                    <button onclick="sendInlineReply()">Send (Inline)</button>
+                    <button onclick="sendNonInlineReply()" class="small">Send (Separate)</button>
+                </div>
+                <div style="display:flex; gap:8px; margin-top:8px; align-items:center;">
+                    <input id="nullRoom" placeholder="room for null thread (e.g. test)" style="flex:1; max-width:300px; background:#000; color:#00ff00; border:1px solid #555; padding:6px;">
+                    <button class="big" onclick="sendToNullThread()">SEND TO NULL THREAD</button>
                 </div>
             </div>
         </div>
@@ -366,7 +371,7 @@
                 var data = packet.data;
                 var text = data.content;
                 var sender = data.sender.name.toLowerCase();
-
+                
                 // Add to notify list (global) for messages from others
                 try {
                     if (text && sender !== BOT_NAME) {
@@ -394,7 +399,7 @@
                 }
 
                 // Bot responses
-                if (lowerText.indexOf('!help @markovbot')) {
+                if (lowerText === '!help' || (isMentioned && lowerText.indexOf('!help') !== -1)) {
                     ws.send(JSON.stringify({ type: 'send', data: { content: "markovbot, a markov chain bot, n-gram (1-4) | maker: @peterforever + vibe coded with: gemini/deepseek | !help, !ping, !markov" , parent: data.id }}));
                 }
                 else if (lowerText === '!ping' || (isMentioned && lowerText.indexOf('!ping') !== -1)) {
@@ -428,7 +433,8 @@
         renderNotifyList();
     }
 
-    function renderNotifyList() {
+    function renderNotifyList(options) {
+        options = options || {};
         var el = document.getElementById('notifyList');
         el.innerHTML = '';
         recentMessages.forEach(function(m, idx) {
@@ -438,14 +444,14 @@
             item.innerHTML = '<div><strong>&' + m.room + '</strong> <span class="notify-meta">' + m.sender + ' • ' + new Date(m.ts).toLocaleTimeString() + '</span></div><div>' + escapeHtml(m.text) + '</div>';
             el.appendChild(item);
         });
-        if (notifyAutoScroll) el.scrollTop = el.scrollHeight;
+        if (notifyAutoScroll && !options.noScroll) el.scrollTop = el.scrollHeight;
     }
 
     function selectMessage(idx) {
         selectedMessage = Object.assign({ idx: idx }, recentMessages[idx]);
         document.getElementById('notifySelected').textContent = '&' + selectedMessage.room + ' / ' + selectedMessage.sender;
         document.getElementById('notifyReplyText').value = '';
-        renderNotifyList();
+        renderNotifyList({ noScroll: true });
     }
 
     function clearNotifyList() {
@@ -460,7 +466,7 @@
         return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
     }
 
-    function sendReply() {
+    function sendInlineReply() {
         if (!selectedMessage) { alert('Select a message first from the list.'); return; }
         var text = document.getElementById('notifyReplyText').value.trim();
         if (!text) { alert('Write a message to send.'); return; }
@@ -468,23 +474,76 @@
         var conn = connections[room];
         if (!conn || conn.readyState !== WebSocket.OPEN) { alert('Connection for &' + room + ' is not open.'); return; }
 
-        // Determine username to use
         var usr = document.getElementById('notifyUsername').value.trim();
         if (!usr) usr = BOT_NAME;
 
-        // Temporarily change nick if different from BOT_NAME
         try {
-            if (usr !== BOT_NAME) {
-                conn.send(JSON.stringify({ type: 'nick', data: { name: usr } }));
-            }
+            if (usr !== BOT_NAME) conn.send(JSON.stringify({ type: 'nick', data: { name: usr } }));
             conn.send(JSON.stringify({ type: 'send', data: { content: text, parent: selectedMessage.id }}));
-            // revert to BOT_NAME to preserve bot behavior for commands
-            if (usr !== BOT_NAME) {
-                conn.send(JSON.stringify({ type: 'nick', data: { name: BOT_NAME } }));
-            }
-            gLog('Sent reply to &' + room + ' as ' + usr + ': ' + text);
+            if (usr !== BOT_NAME) conn.send(JSON.stringify({ type: 'nick', data: { name: BOT_NAME } }));
+            gLog('Sent inline reply to &' + room + ' as ' + usr + ': ' + text);
+
+            // show user's reply in notify list
+            recentMessages.unshift({ room: room, sender: usr, text: text, id: 'local-' + Date.now(), ts: Date.now() });
+            if (recentMessages.length > maxMessages) recentMessages.pop();
+            // clear editor
+            document.getElementById('notifyReplyText').value = '';
+            renderNotifyList();
         } catch(e) {
-            gLog('⚠️ Failed to send reply: ' + e);
+            gLog('⚠️ Failed to send inline reply: ' + e);
+        }
+    }
+
+    function sendNonInlineReply() {
+        // send as a separate message in the same room but without parent (null thread)
+        if (!selectedMessage) { alert('Select a message first from the list.'); return; }
+        var text = document.getElementById('notifyReplyText').value.trim();
+        if (!text) { alert('Write a message to send.'); return; }
+        var room = selectedMessage.room;
+        var conn = connections[room];
+        if (!conn || conn.readyState !== WebSocket.OPEN) { alert('Connection for &' + room + ' is not open.'); return; }
+
+        var usr = document.getElementById('notifyUsername').value.trim();
+        if (!usr) usr = BOT_NAME;
+
+        try {
+            if (usr !== BOT_NAME) conn.send(JSON.stringify({ type: 'nick', data: { name: usr } }));
+            conn.send(JSON.stringify({ type: 'send', data: { content: text }}));
+            if (usr !== BOT_NAME) conn.send(JSON.stringify({ type: 'nick', data: { name: BOT_NAME } }));
+            gLog('Sent separate reply to &' + room + ' as ' + usr + ': ' + text);
+
+            recentMessages.unshift({ room: room, sender: usr, text: text, id: 'local-' + Date.now(), ts: Date.now() });
+            if (recentMessages.length > maxMessages) recentMessages.pop();
+            document.getElementById('notifyReplyText').value = '';
+            renderNotifyList();
+        } catch(e) {
+            gLog('⚠️ Failed to send separate reply: ' + e);
+        }
+    }
+
+    function sendToNullThread() {
+        var room = document.getElementById('nullRoom').value.replace('&','').trim();
+        if (!room) { alert('Enter a room to send to.'); return; }
+        var text = document.getElementById('notifyReplyText').value.trim();
+        if (!text) { alert('Write a message to send.'); return; }
+        var conn = connections[room];
+        if (!conn || conn.readyState !== WebSocket.OPEN) { alert('Connection for &' + room + ' is not open.'); return; }
+
+        var usr = document.getElementById('notifyUsername').value.trim();
+        if (!usr) usr = BOT_NAME;
+
+        try {
+            if (usr !== BOT_NAME) conn.send(JSON.stringify({ type: 'nick', data: { name: usr } }));
+            conn.send(JSON.stringify({ type: 'send', data: { content: text }}));
+            if (usr !== BOT_NAME) conn.send(JSON.stringify({ type: 'nick', data: { name: BOT_NAME } }));
+            gLog('Sent null-thread message to &' + room + ' as ' + usr + ': ' + text);
+
+            recentMessages.unshift({ room: room, sender: usr, text: text, id: 'local-' + Date.now(), ts: Date.now() });
+            if (recentMessages.length > maxMessages) recentMessages.pop();
+            document.getElementById('notifyReplyText').value = '';
+            renderNotifyList();
+        } catch(e) {
+            gLog('⚠️ Failed to send null-thread message: ' + e);
         }
     }
 
