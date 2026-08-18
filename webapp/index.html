@@ -399,7 +399,7 @@
                 }
 
                 // Bot responses
-                if (lowerText === '!help' || (isMentioned && lowerText.indexOf('!help') !== -1)) {
+                if (lowerText.includes("!help @markovbot")) { // should fix it?
                     ws.send(JSON.stringify({ type: 'send', data: { content: "markovbot, a markov chain bot, n-gram (1-4) | maker: @peterforever + vibe coded with: gemini/deepseek | !help, !ping, !markov" , parent: data.id }}));
                 }
                 else if (lowerText === '!ping' || (isMentioned && lowerText.indexOf('!ping') !== -1)) {
