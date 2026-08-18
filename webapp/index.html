@@ -405,12 +405,13 @@
                 else if (lowerText === '!ping' || (isMentioned && lowerText.indexOf('!ping') !== -1)) {
                     ws.send(JSON.stringify({ type: 'send', data: { content: "pong! 🏓", parent: data.id }}));
                 }
-                else if (lowerText.indexOf('!markov') === 0 || isMentioned) {
+                else if (lowerText.indexOf('!markov') === 0) {
                     var seed = lowerText.replace('!markov', '').replace('@' + BOT_NAME, '').trim();
                     var reply = generate(seed);
                     ws.send(JSON.stringify({ type: 'send', data: { content: reply, parent: data.id }}));
                     roomLog(roomName, "REPLIED: " + reply);
                 }
+                else {}
             }
         };
 
