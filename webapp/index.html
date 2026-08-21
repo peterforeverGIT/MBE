@@ -286,12 +286,21 @@
             roomLog(room, "⏳ AI is busy processing another request");
             return;
         }
+
+        // Extract last 5 lines from the terminal
+        const term = document.getElementById(`term-${room}`);
+        const context = term
+            ? Array.from(term.querySelectorAll('.chat-line'))
+              .slice(-10)
+              .map(line => line.textContent)
+              .join('\n')
+        : 'No context';
         
         // Extract the prompt after @ai
         const promptMatch = text.match(/@ai\s+(.+)/i);
         if (!promptMatch) return;
         
-        const prompt = "You are a bot called @markovbot (-extendedLLM) in euphoria.leet.nu/room/" + room + " a chat room on This prompt given by user @" + sender + " in useing the '@ai prompt' comand. Answer in less than 50 words with no emoji or markdown unless absolutely necessary. Plain text reply only. Here is room logs \"" + document.getElementById('term-' + room) + "\" Prompt is: " + promptMatch[1].trim();
+        const prompt = "You are a bot called @markovbot (-extendedLLM) in euphoria.leet.nu/room/" + room + " a chat room on This prompt given by user @" + sender + " in useing the '@ai prompt' comand. Answer in less than 50 words with no emoji or markdown unless absolutely necessary. Plain text reply only. Here is room logs \"" + context + "\" Prompt is: " + promptMatch[1].trim();
         if (!prompt) return;
         
         roomLog(room, `🤖 AI request from ${sender}: ${prompt}`);
