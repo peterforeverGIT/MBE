@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>MarkovBot Multi-Terminal Manager</title>
+    <title>MarkovBot Multi-Terminal Manager + AI</title>
     <style>
         body { font-family: sans-serif; background: #1a1a1a; color: #dcdcdc; padding: 15px; font-size: 13px; margin: 0; }
         .container { max-width: 1000px; margin: auto; }
@@ -23,8 +23,14 @@
         .btn-red { background: #cc0000; margin-left: 10px; padding: 4px 8px; font-size: 10px; }
         .maker-tag { font-size: 11px; color: #777; text-align: center; display: block; margin-top: 20px; font-style: italic; }
         .chat-line { margin-bottom: 4px; border-bottom: 1px solid #111; }
-
-        /* Notify panel styles (similar to tab-content but separate UI inside) */
+        
+        /* AI Section Styles */
+        .ai-controls { background: #1e1e1e; padding: 12px; border-radius: 6px; border: 1px solid #333; margin-bottom: 10px; }
+        .ai-status { font-size: 11px; color: #aaa; margin-top: 5px; }
+        .ai-status.connected { color: #00ff00; }
+        .ai-status.disconnected { color: #ff5555; }
+        
+        /* Notify panel styles */
         .notify-controls { padding: 10px; border-bottom: 1px solid #333; display:flex; gap:8px; align-items:center; }
         .notify-list { height: 200px; overflow-y: auto; background: #0b0b0b; border-top: 1px solid #222; padding: 8px; font-family: monospace; font-size: 12px; }
         .notify-item { padding: 6px; border-bottom: 1px solid #111; cursor: pointer; }
@@ -33,6 +39,10 @@
         .notify-reply { margin-top: 8px; }
         .small { font-size: 11px; padding: 6px; }
         .big { padding: 12px 18px; font-size: 14px; }
+        
+        /* AI Response Styling */
+        .ai-response { border-left: 3px solid #0066cc; padding-left: 10px; margin: 8px 0; background: rgba(0,102,204,0.05); }
+        .ai-thinking { color: #aaa; font-style: italic; }
     </style>
 </head>
 <body>
@@ -40,6 +50,17 @@
 <div class="container">
     <h3>🌐 Global Connection Log</h3>
     <div id="globalLog"></div>
+
+    <!-- AI Configuration Section -->
+    <div class="ai-controls">
+        <strong>🤖 Mistral AI Configuration</strong>
+        <div style="display: flex; gap: 5px; margin-top: 8px;">
+            <input type="password" id="mistralApiKey" placeholder="Enter your Mistral API key" style="flex: 1;">
+            <button onclick="saveApiKey()">Save Key</button>
+            <button onclick="testAiConnection()">Test Connection</button>
+        </div>
+        <div id="aiStatus" class="ai-status">API key not configured</div>
+    </div>
 
     <div class="controls">
         <div style="display:flex; gap: 5px;">
@@ -49,11 +70,9 @@
     </div>
 
     <div class="tabs" id="tabBar">
-        <!-- Tabs will appear here -->
         <button class="tab-btn" id="btn-notify" onclick="switchTab('notify')">💬 Direct Chat</button>
     </div>
     <div id="terminalContainer">
-        <!-- Terminals will appear here -->
         <div class="tab-content" id="term-notify" style="display:none;">
             <div class="notify-controls">
                 <label><input type="checkbox" id="notifyEnable"> Enable</label>
@@ -84,7 +103,7 @@
         <button onclick="importBrain()">Apply Text to Brain</button>
     </div>
 
-    <span class="maker-tag">Maker: peterforever + gemini</span>
+    <span class="maker-tag">Maker: peterforever + gemini + mistral</span>
 </div>
 
 <script>
@@ -93,16 +112,20 @@
     var connections = {};
     var BOT_NAME = 'markovbot';
     var activeTab = null;
+    var mistralApiKey = null;
 
-    // Notify panel state (global across rooms)
+    // Notify panel state
     var notifyEnabled = false;
     var notifyAutoScroll = true;
-    var recentMessages = []; // {room, sender, text, id, ts}
+    var recentMessages = [];
     var maxMessages = 200;
     var selectedMessage = null;
-    var currentUserName = BOT_NAME; // default
+    var currentUserName = BOT_NAME;
 
-    // ---------- LOCALSTORAGE PERSISTENCE (NEW) ----------
+    // AI State
+    var aiBusy = false;
+
+    // ---------- LOCALSTORAGE PERSISTENCE ----------
     function saveBrain() {
         try {
             localStorage.setItem('markov_brain', JSON.stringify(brain));
@@ -147,12 +170,170 @@
             gLog("⚠️ Failed to load rooms: " + e);
         }
     }
-    // ---------- END PERSISTENCE ----------
 
-    // ---------- NOTIFY LOCALSTORAGE FOR COMPATIBILITY ----------
+    // ---------- AI KEY MANAGEMENT ----------
+    function saveApiKey() {
+        mistralApiKey = document.getElementById('mistralApiKey').value.trim();
+        if (mistralApiKey) {
+            try {
+                // Store encrypted in sessionStorage (cleared when tab closes)
+                sessionStorage.setItem('mistral_api_key', mistralApiKey);
+                updateAiStatus(true);
+                gLog("🔑 Mistral API key saved to session storage");
+            } catch(e) {
+                gLog("⚠️ Failed to save API key: " + e);
+            }
+        } else {
+            sessionStorage.removeItem('mistral_api_key');
+            mistralApiKey = null;
+            updateAiStatus(false);
+        }
+        document.getElementById('mistralApiKey').value = '';
+    }
+
+    function loadApiKey() {
+        try {
+            mistralApiKey = sessionStorage.getItem('mistral_api_key');
+            if (mistralApiKey) {
+                updateAiStatus(true);
+            }
+        } catch(e) {
+            gLog("⚠️ Failed to load API key: " + e);
+        }
+    }
+
+    function updateAiStatus(connected) {
+        var statusEl = document.getElementById('aiStatus');
+        if (connected) {
+            statusEl.textContent = "🟢 Mistral AI connected (key stored in session)";
+            statusEl.className = "ai-status connected";
+        } else {
+            statusEl.textContent = "🔴 Mistral AI disconnected (no key)";
+            statusEl.className = "ai-status disconnected";
+        }
+    }
+
+    async function testAiConnection() {
+        if (!mistralApiKey) {
+            gLog("⚠️ No API key configured");
+            return;
+        }
+        
+        aiBusy = true;
+        gLog("🔍 Testing Mistral AI connection...");
+        
+        try {
+            const response = await callMistralAPI("Say 'test successful'");
+            if (response && response.choices && response.choices[0]) {
+                gLog("✅ Mistral AI connection test passed!");
+            } else {
+                gLog("❌ Mistral AI connection test failed: Invalid response format");
+            }
+        } catch(error) {
+            gLog("❌ Mistral AI connection test failed: " + error.message);
+        } finally {
+            aiBusy = false;
+        }
+    }
+
+    // ---------- MISTRAL API CALL ----------
+    async function callMistralAPI(prompt) {
+        if (!mistralApiKey) {
+            throw new Error("Mistral API key not configured");
+        }
+        
+        const url = 'https://api.mistral.ai/v1/chat/completions';
+        const headers = {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${mistralApiKey}`
+        };
+        
+        const body = JSON.stringify({
+            model: 'mistral-large-latest',
+            messages: [
+                {
+                    role: 'user',
+                    content: prompt
+                }
+            ],
+            temperature: 0.7,
+            max_tokens: 1000
+        });
+        
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: headers,
+            body: body
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(`API error: ${response.status} ${response.statusText}` + 
+                           (errorData.message ? ' - ' + errorData.message : ''));
+        }
+        
+        return await response.json();
+    }
+
+    // ---------- AI PROMPT HANDLING ----------
+    async function handleAiPrompt(room, sender, text, messageId, connection) {
+        if (!mistralApiKey) {
+            roomLog(room, "⚠️ AI not configured - no API key");
+            return;
+        }
+        
+        if (aiBusy) {
+            roomLog(room, "⏳ AI is busy processing another request");
+            return;
+        }
+        
+        // Extract the prompt after @ai
+        const promptMatch = text.match(/@ai\s+(.+)/i);
+        if (!promptMatch) return;
+        
+        const prompt = promptMatch[1].trim();
+        if (!prompt) return;
+        
+        roomLog(room, `🤖 AI request from ${sender}: ${prompt}`);
+        aiBusy = true;
+        
+        try {
+            // Show thinking indicator
+            const thinkingId = Date.now();
+            roomLog(room, `<span class="ai-thinking" id="thinking-${thinkingId}">AI is thinking...</span>`);
+            
+            const response = await callMistralAPI(prompt);
+            
+            if (response && response.choices && response.choices[0] && response.choices[0].message) {
+                const aiResponse = response.choices[0].message.content;
+                
+                // Remove thinking indicator
+                const thinkingEl = document.getElementById(`thinking-${thinkingId}`);
+                if (thinkingEl) thinkingEl.remove();
+                
+                // Send AI response to the room
+                connection.send(JSON.stringify({
+                    type: 'send',
+                    data: {
+                        content: `🤖 ${aiResponse}`,
+                        parent: messageId
+                    }
+                }));
+                
+                roomLog(room, `🤖 AI Response: ${aiResponse.substring(0, 100)}${aiResponse.length > 100 ? '...' : ''}`);
+            } else {
+                roomLog(room, "❌ AI returned an invalid response format");
+            }
+        } catch(error) {
+            roomLog(room, `❌ AI Error: ${error.message}`);
+        } finally {
+            aiBusy = false;
+        }
+    }
+
+    // ---------- NOTIFY LOCALSTORAGE ----------
     function loadUsername() {
         try {
-            // Backward compatibility: check other possible keys
             var keys = ['markov_username', 'markov_name', 'markov_nick'];
             for (var i=0;i<keys.length;i++){
                 var k = keys[i];
@@ -162,7 +343,6 @@
                     break;
                 }
             }
-            // finally check explicit saved username key
             var explicit = localStorage.getItem('markov_username');
             if (explicit) currentUserName = explicit;
             document.getElementById('notifyUsername').value = currentUserName === BOT_NAME ? '' : currentUserName;
@@ -183,7 +363,6 @@
         try {
             var v = document.getElementById('notifyUsername').value.trim();
             if (v.length === 0) {
-                // clearing username => use BOT_NAME as default
                 currentUserName = BOT_NAME;
                 localStorage.removeItem('markov_username');
             } else {
@@ -204,7 +383,6 @@
             gLog('⚠️ Failed to save notify prefs: ' + e);
         }
     }
-    // ---------- END NOTIFY PERSISTENCE ----------
 
     function gLog(msg) {
         var entry = document.createElement('div');
@@ -218,7 +396,7 @@
         if (term) {
             var entry = document.createElement('div');
             entry.className = 'chat-line';
-            entry.textContent = '[' + new Date().toLocaleTimeString() + '] ' + msg;
+            entry.innerHTML = '[' + new Date().toLocaleTimeString() + '] ' + msg;
             term.appendChild(entry);
             term.scrollTop = term.scrollHeight;
         }
@@ -228,8 +406,8 @@
     function train(text) {
         if (!text) return;
         var words = text.toLowerCase().trim().split(/\s+/);
-        words.push("."); // sentence terminator
-        if (words.length < 2) return; // need at least one word + terminator
+        words.push(".");
+        if (words.length < 2) return;
 
         for (var n = 1; n <= 4; n++) {
             for (var i = 0; i <= words.length - n - 1; i++) {
@@ -239,7 +417,6 @@
                 brain[n][key].push(next);
             }
         }
-        // --- NEW: Auto-save brain after learning ---
         saveBrain();
     }
 
@@ -247,7 +424,7 @@
         var seedWords = seedText.toLowerCase().trim().split(/\s+/);
         if (seedWords.length === 0) return "give me some words to start with.";
 
-        var result = seedWords.slice(); // copy
+        var result = seedWords.slice();
         for (var i = 0; i < 50; i++) {
             var found = false;
             var maxN = Math.min(4, result.length);
@@ -257,14 +434,14 @@
                     var options = brain[n][key];
                     var next = options[Math.floor(Math.random() * options.length)];
                     if (next === ".") {
-                        return result.join(' '); // end of sentence
+                        return result.join(' ');
                     }
                     result.push(next);
                     found = true;
                     break;
                 }
             }
-            if (!found) break; // no continuation found
+            if (!found) break;
         }
         return result.join(' ');
     }
@@ -296,8 +473,6 @@
         var term = document.getElementById('term-' + roomName);
         if (term) term.remove();
         gLog("Closed terminal for &" + roomName);
-        
-        // --- NEW: Save room list ---
         saveRooms();
 
         var remaining = Object.keys(connections);
@@ -307,7 +482,6 @@
     function addRoom(roomName) {
         var r = roomName || document.getElementById('newRoom').value.replace('&', '').trim();
         if (r && !connections[r]) {
-            // Create Tab Button
             var btn = document.createElement('button');
             btn.className = 'tab-btn';
             btn.id = 'btn-' + r;
@@ -315,7 +489,6 @@
             btn.onclick = function() { switchTab(r); };
             document.getElementById('tabBar').appendChild(btn);
 
-            // Create Terminal Content
             var term = document.createElement('div');
             term.className = 'tab-content';
             term.id = 'term-' + r;
@@ -325,8 +498,6 @@
             connectToRoom(r);
             switchTab(r);
             if (!roomName) document.getElementById('newRoom').value = "";
-
-            // --- NEW: Save room list ---
             saveRooms();
         }
     }
@@ -335,44 +506,38 @@
     function connectToRoom(roomName) {
         var ws = new WebSocket('wss://euphoria.leet.nu/room/' + roomName + '/ws');
         ws.manualClose = false;
-        var ready = false; // set to true after snapshot-event
+        var ready = false;
 
         ws.onopen = function() {
             gLog("Successfully connected to &" + roomName);
             roomLog(roomName, "--- TERMINAL OPENED: BOT ONLINE ---");
-            // Send nick immediately (as per example)
             ws.send(JSON.stringify({ type: 'nick', data: { name: BOT_NAME } }));
         };
 
         ws.onmessage = function(e) {
             var packet = JSON.parse(e.data);
             
-            // 1. Always reply to ping-event
             if (packet.type === 'ping-event') {
                 ws.send(JSON.stringify({ type: 'ping-reply', data: { time: packet.data.time } }));
                 return;
             }
 
-            // 2. Handle snapshot-event (room joined successfully)
             if (packet.type === 'snapshot-event') {
                 ready = true;
                 roomLog(roomName, "--- Room snapshot received (bot ready) ---");
                 return;
             }
 
-            // 3. Handle bounce-event (private room)
             if (packet.type === 'bounce-event') {
                 roomLog(roomName, "⚠️ Room requires authentication – use auth/login command.");
                 return;
             }
 
-            // 4. Handle send-event (incoming message)
             if (packet.type === 'send-event') {
                 var data = packet.data;
                 var text = data.content;
                 var sender = data.sender.name.toLowerCase();
                 
-                // Add to notify list (global) for messages from others
                 try {
                     if (text && sender !== BOT_NAME) {
                         addMessageToNotifyList(roomName, data.sender.name, text, data.id);
@@ -384,6 +549,11 @@
                 var lowerText = text.toLowerCase();
                 var isMentioned = (lowerText.indexOf('@' + BOT_NAME) !== -1);
 
+                // Check for @ai command
+                if (lowerText.includes('@ai')) {
+                    handleAiPrompt(roomName, data.sender.name, text, data.id, ws);
+                }
+
                 // Train on every message except !markov commands
                 if (lowerText.indexOf('!markov') !== 0) {
                     train(text);
@@ -392,15 +562,14 @@
                     roomLog(roomName, sender + " used command: " + text);
                 }
 
-                // Only respond if ready (snapshot received)
                 if (!ready) {
                     roomLog(roomName, "⏳ Not ready yet – waiting for snapshot.");
                     return;
                 }
 
                 // Bot responses
-                if (lowerText.includes("!help @markovbot")) { // should fix it?
-                    ws.send(JSON.stringify({ type: 'send', data: { content: "markovbot, a markov chain bot, n-gram (1-4) | maker: @peterforever + vibe coded with: gemini/deepseek | !help, !ping, !markov" , parent: data.id }}));
+                if (lowerText.includes("!help @markovbot")) {
+                    ws.send(JSON.stringify({ type: 'send', data: { content: "markovbot, a markov chain bot, n-gram (1-4) | maker: @peterforever + vibe coded with: gemini/deepseek/mistral | !help, !ping, !markov, @ai [prompt]", parent: data.id }}));
                 }
                 else if (lowerText === '!ping' || (isMentioned && lowerText.indexOf('!ping') !== -1)) {
                     ws.send(JSON.stringify({ type: 'send', data: { content: "pong! 🏓", parent: data.id }}));
@@ -411,7 +580,6 @@
                     ws.send(JSON.stringify({ type: 'send', data: { content: reply, parent: data.id }}));
                     roomLog(roomName, "REPLIED: " + reply);
                 }
-                else {}
             }
         };
 
@@ -484,10 +652,8 @@
             if (usr !== BOT_NAME) conn.send(JSON.stringify({ type: 'nick', data: { name: BOT_NAME } }));
             gLog('Sent inline reply to &' + room + ' as ' + usr + ': ' + text);
 
-            // show user's reply in notify list
             recentMessages.unshift({ room: room, sender: usr, text: text, id: 'local-' + Date.now(), ts: Date.now() });
             if (recentMessages.length > maxMessages) recentMessages.pop();
-            // clear editor
             document.getElementById('notifyReplyText').value = '';
             renderNotifyList();
         } catch(e) {
@@ -496,7 +662,6 @@
     }
 
     function sendNonInlineReply() {
-        // send as a separate message in the same room but without parent (null thread)
         if (!selectedMessage) { alert('Select a message first from the list.'); return; }
         var text = document.getElementById('notifyReplyText').value.trim();
         if (!text) { alert('Write a message to send.'); return; }
@@ -556,7 +721,6 @@
     function importBrain() {
         try {
             brain = JSON.parse(document.getElementById('brainText').value);
-            // --- NEW: Save imported brain to localStorage ---
             saveBrain();
             gLog("🧠 Brain updated and saved to localStorage.");
         } catch(e) {
@@ -564,14 +728,11 @@
         }
     }
 
-    // ---------- INITIALIZATION (MODIFIED) ----------
-    // 1. Load saved brain from localStorage
+    // ---------- INITIALIZATION ----------
     loadBrain();
-
-    // Load username and notify prefs
     loadUsername();
+    loadApiKey();
 
-    // Hook up notify toggles
     document.addEventListener('DOMContentLoaded', function() {
         var en = document.getElementById('notifyEnable');
         var auto = document.getElementById('notifyAutoScroll');
@@ -582,13 +743,11 @@
         document.getElementById('notifyUsername').onchange = function() { /* lazy */ };
     });
 
-    // 2. Try to restore previous rooms
     var savedRooms = localStorage.getItem('markov_rooms');
     if (savedRooms) {
         loadRooms();
     }
 
-    // 3. If no rooms are connected after restoring (or first visit), add default 'test'
     if (Object.keys(connections).length === 0) {
         addRoom('test');
     }
