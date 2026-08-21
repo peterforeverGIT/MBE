@@ -291,7 +291,7 @@
         const promptMatch = text.match(/@ai\s+(.+)/i);
         if (!promptMatch) return;
         
-        const prompt = promptMatch[1].trim();
+        const prompt = "You are a bot called @markovbot (-extendedLLM) in euphoria.leet.nu/room/" + room + " a chat room on This prompt given by user @" + sender + " in useing the '@ai prompt' comand. Answer in less than 50 words with no emoji or markdown unless absolutely necessary. Plain text reply only. Here is room logs \"" + document.getElementById('term-' + room) + "\" Prompt is: " + promptMatch[1].trim();
         if (!prompt) return;
         
         roomLog(room, `🤖 AI request from ${sender}: ${prompt}`);
