@@ -313,6 +313,8 @@
             if (response && response.choices && response.choices[0] && response.choices[0].message) {
                 const aiResponse = response.choices[0].message.content;
                 
+                connection.send(JSON.stringify({ type: 'nick', data: { name: "markovbot(AI)" } }));
+                
                 // Send AI response to the room
                 connection.send(JSON.stringify({
                     type: 'send',
@@ -329,6 +331,8 @@
                         parent: messageId
                     }
                 }));
+
+                connection.send(JSON.stringify({ type: 'nick', data: { name: BOT_NAME } }));
                 
                 roomLog(room, `🤖 AI Response: ${aiResponse.substring(0, 1000)}${aiResponse.length > 1000 ? '...' : ''}`);
                 train(aiResponse)
