@@ -149,7 +149,6 @@
 
     // Chat Records - Shared across rooms
     var chatRecords = {};
-    var maxChatRecords = 1000;
 
     // ---------- LOCALSTORAGE PERSISTENCE ----------
     function saveBrain() {
@@ -231,11 +230,6 @@
             timestamp: Date.now(),
             room: room
         });
-        
-        // Limit records per room
-        if (chatRecords[room].length > maxChatRecords) {
-            chatRecords[room].pop();
-        }
         
         saveChatRecords();
     }
