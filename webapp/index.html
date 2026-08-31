@@ -875,7 +875,7 @@
 
                 // Bot responses
                 if (lowerText.includes("!help @markovbot")) {
-                    ws.send(JSON.stringify({ type: 'send', data: { content: "@markovbot, a **4** in one, multi functionional bot. It is a: \n - markov chain bot, n-gram (1-4) with !markov <seed texts>\n - ai router to euphoria with !ai <prompt> \n - euphoria multi room logs search bot with !search <phrase> \n - euphoria frontend client to hoster with the web app https://peterforevergit.github.io/MBE/webapp/ (using required configuration ask @peterforever for more)\n | maker: @peterforever + vibe coded with: gemini/deepseek/mistral | commands: !help, !ping, !markov, @ai [prompt], !search [phrase]", parent: data.id }}));
+                    ws.send(JSON.stringify({ type: 'send', data: { content: "@markovbot, a **4** in one, multi functionional bot. It is a: \n - markov chain bot, n-gram (1-4) with !markov <seed texts>\n - ai router to euphoria with @ai <prompt> \n - euphoria multi room logs search bot with !search <phrase> \n - euphoria frontend client to hoster with the web app https://peterforevergit.github.io/MBE/webapp/ (using requires configuration ask @peterforever for more)\n | maker: @peterforever + vibe coded with: gemini/deepseek/mistral | commands: !help, !ping, !markov, @ai [prompt], !search [phrase]", parent: data.id }}));
                 }
                 else if (lowerText === '!ping' || (isMentioned && lowerText.indexOf('!ping') !== -1)) {
                     ws.send(JSON.stringify({ type: 'send', data: { content: "pong! 🏓", parent: data.id }}));
