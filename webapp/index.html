@@ -532,14 +532,14 @@
                 }
             }));
         } else {
-            const resultText = results.slice(0, 3).map(r => 
-                `[&${r.room}] ${r.sender}: ${r.text.substring(0, 50)}${r.text.length > 50 ? '...' : ''}`
-            ).join(' | ');
+            const resultText = results.slice(0, 10).map(r => 
+                `[&${r.room}] ${r.sender}: ${r.text.substring(0, 100)}${r.text.length > 100 ? '...' : ''}`
+            ).join(' \n| ');
             
             connection.send(JSON.stringify({
                 type: 'send',
                 data: {
-                    content: `Search results for "${query}": ${resultText}${results.length > 3 ? ` (+${results.length - 3} more)` : ''}`,
+                    content: `Search results for "${query}": \n ${resultText}${results.length > 3 ? ` (+${results.length - 3} more)` : ''}`,
                     parent: messageId
                 }
             }));
