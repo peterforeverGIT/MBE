@@ -792,9 +792,9 @@
             }
 
             if (packet.type === 'send-reply') {
-                addMessageToNotifyList(roomName, packet.sender, packet.content, packet.id);
+                addMessageToNotifyList(roomName, packet.sender.name, packet.content, packet.id);
                 // Add to chat records
-                addToChatRecords(roomName, packet.sender, packet.content, packet.id);
+                addToChatRecords(roomName, packet.sender.name, packet.content, packet.id);
                 return;
             }
 
