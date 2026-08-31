@@ -799,7 +799,7 @@
                     `);
                     train(msg.content);
                     addToChatRecords(roomName, msg.sender.name, msg.content, msg.id);
-                    addMessageToNotifyList(roomName, msg.sender, msg.content, msg.id)
+                    addMessageToNotifyList(roomName, msg.sender.name, msg.content, msg.id)
                 }
                 roomLog(roomName, "-------------------- **USERS** -----------------------")
                 for (let i = 0; i < packet.data.log.listing.length; i++) {
