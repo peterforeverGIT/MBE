@@ -107,8 +107,7 @@
                 <div class="notify-meta">Selected: <span id="notifySelected">(none)</span></div>
                 <textarea id="notifyReplyText" rows="3" placeholder="Write your reply here..."></textarea>
                 <div style="display:flex; gap:8px; margin-top:6px;">
-                    <button onclick="sendInlineReply()">Send (Inline)</button>
-                    <button onclick="sendNonInlineReply()" class="small">Send (Separate)</button>
+                    <button onclick="sendInlineReply()">Send Reply</button>
                 </div>
                 <div style="display:flex; gap:8px; margin-top:8px; align-items:center;">
                     <input id="nullRoom" placeholder="room for null thread (e.g. test)" style="flex:1; max-width:300px; background:#000; color:#00ff00; border:1px solid #555; padding:6px;">
@@ -230,7 +229,7 @@
         if (!chatRecords[room]) {
             chatRecords[room] = [];
         }
-        
+        deleteChatRecordByText(room, text);
         chatRecords[room].unshift({
             id: messageId || 'msg-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9),
             sender: sender,
@@ -247,6 +246,16 @@
         if (chatRecords[room]) {
             chatRecords[room] = chatRecords[room].filter(function(msg) {
                 return msg.id !== messageId;
+            });
+            saveChatRecords();
+            performSearch(); // Refresh search results
+        }
+    }
+    
+    function deleteChatRecordByText(room, messageTxt) {
+        if (chatRecords[room]) {
+            chatRecords[room] = chatRecords[room].filter(function(msg) {
+                return msg.text !== messageTxt;
             });
             saveChatRecords();
             performSearch(); // Refresh search results
@@ -475,7 +484,7 @@
                 }));
                 
                 // Add to chat records
-                addToChatRecords(room, "markovbot(AI)", aiResponse, 'ai-' + Date.now());
+                // addToChatRecords(room, "markovbot(AI)", aiResponse, 'ai-' + Date.now());
                 
                 connection.send(JSON.stringify({
                     type: 'send',
@@ -494,6 +503,13 @@
             }
         } catch(error) {
             roomLog(room, `❌ AI Error: ${error.message}`);
+            connection.send(JSON.stringify({
+                    type: 'send',
+                    data: {
+                        content: "error: " + error.message + "meanwhile, markov chain says: " + generate(text),
+                        parent: messageId
+                    }
+            }));
         } finally {
             aiBusy = false;
         }
@@ -736,7 +752,35 @@
                 
                 roomLog(roomName, "---Room snapshot---");
                 ws.send(JSON.stringify({ type: 'nick', data: { name: BOT_NAME } }));
-                roomLog(roomName, "listing: " + packet.data.listing);
+                
+                roomLog(roomName, "-------------------- **MSGs** -----------------------")
+                for (let i = 0; i < packet.data.log.length; i++) {
+                    let msg = packet.data.log[i];
+                    roomLog(roomName, `
+                Message #${i}:
+                id: ${msg.id}
+                parent: ${msg.parent || 'null'}
+                time: ${msg.time}
+                sender: ${JSON.stringify(msg.sender)}
+                content: ${msg.content}
+                    `);
+                    train(msg.content};
+                    addToChatRecords(roomName, msg.sender, msg.content, msg.id);
+                    addMessageToNotifyList(roomName, msg.sender, msg.content, msg.id)
+                }
+                roomLog(roomName, "-------------------- **USERS** -----------------------")
+                for (let i = 0; i < packet.data.log.listing; i++) {
+                    let lst = packet.data.listing[i];
+                    roomLog(roomName, `
+                id: ${lst.id}
+                name: ${lst.name}
+                session id: ${lst.session_id}
+                staff?: ${lst.is_staff}
+                manager?: ${lst.is_manager}
+                client adr: ${lst.client_address}
+                real one?!?: ${lst.real_client_address}
+                    `);
+                }
                 roomLog(roomName, "log: " + packet.data.log);
                 train(packet.data.log);
                 firstCon = false;
@@ -748,13 +792,19 @@
                 return;
             }
 
+            if (packet.type === 'send-reply') {
+                addMessageToNotifyList(roomName, packet.sender, packet.content, packet.id);
+                // Add to chat records
+                addToChatRecords(roomName, packet.sender, packet.content, packet.id);
+                return;
+            }
+
             if (packet.type === 'send-event') {
                 var data = packet.data;
                 var text = data.content;
-                var sender = data.sender.name.toLowerCase();
-                
+                var sender = data.sender.name;
                 try {
-                    if (text && sender !== BOT_NAME) {
+                    if (sender !== BOT_NAME) {
                         addMessageToNotifyList(roomName, data.sender.name, text, data.id);
                         // Add to chat records
                         addToChatRecords(roomName, data.sender.name, text, data.id);
@@ -819,7 +869,6 @@
 
     // ---------- NOTIFY LIST MANAGEMENT ----------
     function addMessageToNotifyList(room, sender, text, id) {
-        if (!notifyEnabled) return;
         var ts = Date.now();
         recentMessages.unshift({room: room, sender: sender, text: text, id: id, ts: ts});
         if (recentMessages.length > maxMessages) recentMessages.pop();
@@ -879,46 +928,13 @@
             recentMessages.unshift({ room: room, sender: usr, text: text, id: 'local-' + Date.now(), ts: Date.now() });
             if (recentMessages.length > maxMessages) recentMessages.pop();
             
-            // Add to chat records
-            addToChatRecords(room, usr, text, 'local-' + Date.now());
-            
             document.getElementById('notifyReplyText').value = '';
             renderNotifyList();
         } catch(e) {
             gLog('⚠️ Failed to send inline reply: ' + e);
         }
     }
-
-    function sendNonInlineReply() {
-        if (!selectedMessage) { alert('Select a message first from the list.'); return; }
-        var text = document.getElementById('notifyReplyText').value.trim();
-        if (!text) { alert('Write a message to send.'); return; }
-        var room = selectedMessage.room;
-        var conn = connections[room];
-        if (!conn || conn.readyState !== WebSocket.OPEN) { alert('Connection for &' + room + ' is not open.'); return; }
-
-        var usr = document.getElementById('notifyUsername').value.trim();
-        if (!usr) usr = BOT_NAME;
-
-        try {
-            if (usr !== BOT_NAME) conn.send(JSON.stringify({ type: 'nick', data: { name: usr } }));
-            conn.send(JSON.stringify({ type: 'send', data: { content: text }}));
-            if (usr !== BOT_NAME) conn.send(JSON.stringify({ type: 'nick', data: { name: BOT_NAME } }));
-            gLog('Sent separate reply to &' + room + ' as ' + usr + ': ' + text);
-
-            recentMessages.unshift({ room: room, sender: usr, text: text, id: 'local-' + Date.now(), ts: Date.now() });
-            if (recentMessages.length > maxMessages) recentMessages.pop();
-            
-            // Add to chat records
-            addToChatRecords(room, usr, text, 'local-' + Date.now());
-            
-            document.getElementById('notifyReplyText').value = '';
-            renderNotifyList();
-        } catch(e) {
-            gLog('⚠️ Failed to send separate reply: ' + e);
-        }
-    }
-
+    
     function sendToNullThread() {
         var room = document.getElementById('nullRoom').value.replace('&','').trim();
         if (!room) { alert('Enter a room to send to.'); return; }
