@@ -621,43 +621,76 @@
 
     // ---------- N-GRAM (1-4) WITH DUMB BACKOFF ----------
     function train(text) {
-        if (!text) return;
-        var words = text.toLowerCase().trim().split(/\s+/);
-        words.push(".");
-        if (words.length < 2) return;
-
-        for (var n = 1; n <= 4; n++) {
-            for (var i = 0; i <= words.length - n - 1; i++) {
-                var key = words.slice(i, i + n).join(' ');
-                var next = words[i + n];
-                if (!brain[n][key]) brain[n][key] = [];
-                brain[n][key].push(next);
-            }
-        }
-        saveBrain();
+        console.log("depricated trai method was called");
     }
 
     function generate(seedText) {
-        var seedWords = seedText.toLowerCase().trim().split(/\s+/);
-        if (seedWords.length === 0) return "give me some words to start with.";
+        // Load chat records if not already loaded
+        if (Object.keys(chatRecords).length === 0) {
+            loadChatRecords();
+        }
 
-        var result = seedWords.slice();
-        for (var i = 0; i < 50; i++) {
-            var found = false;
-            var maxN = Math.min(4, result.length);
-            for (var n = maxN; n >= 1; n--) {
-                var key = result.slice(result.length - n).join(' ');
-                if (brain[n][key] && brain[n][key].length > 0) {
-                    var options = brain[n][key];
-                    var next = options[Math.floor(Math.random() * options.length)];
-                    if (next === ".") {
-                        return result.join(' ');
+        // Build a temporary brain from ALL chat records
+        var tempBrain = { 1: {}, 2: {}, 3: {}, 4: {} };
+
+        // Flatten all messages into one text corpus
+        for (var room in chatRecords) {
+            chatRecords[room].forEach(function(msg) {
+                if (msg.text && typeof msg.text === 'string') {
+                    var text = msg.text.toLowerCase().trim();
+                    if (text.length === 0) return;
+
+                    // Train the temporary brain on this message
+                    var words = text.split(/\s+/);
+                    words.push("."); // End marker
+    
+                for (var n = 1; n <= 4; n++) {
+                    for (var i = 0; i <= words.length - n - 1; i++) {
+                        var key = words.slice(i, i + n).join(' ');
+                        var next = words[i + n];
+                        if (!tempBrain[n][key]) tempBrain[n][key] = [];
+                        tempBrain[n][key].push(next);
                     }
-                    result.push(next);
-                    found = true;
-                    break;
                 }
             }
+        });
+    }
+
+    // Generate from the seed
+    var seedWords = seedText.toLowerCase().trim().split(/\s+/);
+    if (seedWords.length === 0) {
+        // If no seed, pick a random message from records
+        var allMessages = [];
+        for (var room in chatRecords) {
+            allMessages = allMessages.concat(chatRecords[room]);
+        }
+        if (allMessages.length > 0) {
+            var randomMsg = allMessages[Math.floor(Math.random() * allMessages.length)];
+            seedWords = randomMsg.text.toLowerCase().trim().split(/\s+/).slice(0, 2);
+        } else {
+            return "no messages to generate from.";
+        }
+    }
+
+    var result = seedWords.slice();
+    for (var i = 0; i < 50; i++) {
+        var found = false;
+        var maxN = Math.min(4, result.length);
+
+        // Try n-grams from largest to smallest (4 → 1)
+        for (var n = maxN; n >= 1; n--) {
+            var key = result.slice(result.length - n).join(' ');
+            if (tempBrain[n][key] && tempBrain[n][key].length > 0) {
+                var options = tempBrain[n][key];
+                var next = options[Math.floor(Math.random() * options.length)];
+                if (next === ".") {
+                    return result.join(' ');
+                }
+                result.push(next);
+                found = true;
+                break;
+            }
+        }
             if (!found) break;
         }
         return result.join(' ');
