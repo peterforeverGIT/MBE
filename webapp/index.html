@@ -701,6 +701,7 @@
         }
     }
 
+    var firstCon = true;
     // ---------- WEBSOCKET CONNECTION ----------
     function connectToRoom(roomName) {
         var ws = new WebSocket('wss://euphoria.leet.nu/room/' + roomName + '/ws');
@@ -731,12 +732,12 @@
             if (packet.type === 'snapshot-event') {
                 ready = true;
                 
-                roomLog(roomName, "---Room snapshot---listing: " + packet.listing + "log: " + packet.log);
+                roomLog(roomName, "---Room snapshot---);
                 ws.send(JSON.stringify({ type: 'nick', data: { name: BOT_NAME } }));
-                roomLog(roomName, "listing: " + packet.listing);
-                roomLog(roomName, "log: " + packet.log);
-                train(packet.log);
-                
+                roomLog(roomName, "listing: " + packet.data.listing);
+                roomLog(roomName, "log: " + packet.data.log);
+                train(packet.data.log);
+                firstCon = false;
                 return;
             }
 
