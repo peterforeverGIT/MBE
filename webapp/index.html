@@ -125,6 +125,14 @@
         <button onclick="importBrain()">Apply Text to Brain</button>
     </div>
 
+    <div class="controls" style="margin-top:20px;">
+        <strong>📜 Log Management (Text-Based JSON):</strong>
+        <textarea id="logsText" rows="2"></textarea>
+        <button onclick="exportLogs()">Show Current Logs</button>
+        <button onclick="importLogs()">Apply Text to Logs</button>
+    </div>
+
+
     <span class="maker-tag">Maker: peterforever + gemini + mistral</span>
 </div>
 
@@ -956,6 +964,30 @@
         }
     }
 
+    function exportLogs() {
+        const logs = localStorage.getItem('markov_chat_records');
+        const logsText = document.getElementById('logsText');
+    
+        if (logs) {
+           logsText.value = JSON.stringify(JSON.parse(logs), null, 2);
+        } else {
+            logsText.value = "No logs found in localStorage";
+        }
+    }
+
+    function importLogs() {
+        const logsText = document.getElementById('logsText');
+    
+        try {
+            const parsed = JSON.parse(logsText.value);
+            localStorage.setItem('markov_chat_records', JSON.stringify(parsed));
+            alert('Logs imported successfully!');
+        } catch (error) {
+            alert('Error: Invalid JSON - ' + error.message);
+        }
+    }
+
+
     // ---------- INITIALIZATION ----------
     loadBrain();
     loadChatRecords();
@@ -988,6 +1020,8 @@
         // Auto-connect to a default room if none exist
         // You can change this or remove it
     }
+
+    
 </script>
 </body>
 </html>
