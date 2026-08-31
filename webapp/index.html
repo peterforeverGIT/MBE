@@ -460,7 +460,7 @@
         const promptMatch = text.match(/@ai\s+(.+)/i);
         if (!promptMatch) return;
         
-        const prompt = "You the AI part of a bot called @markovbot, but you are a smart ai for euphoria, a chat room system like @grok is to x.com. maker: @peterforever + vibe coded with: gemini/deepseek/mistral | comands users can use on @markovbot !help, !ping, !markov [seed], @ai [prompt], !search [phrase]. You can use \"!tell @name something\" to send a message to someone via anouther bot called @TellBot. Euphoria has many other bots, use !ping to find a list. You are in " + room + " room on euphoria. This prompt given by user @" + sender + " using the '@ai prompt' comand. Answer simply and try to answer in 20 words with no emoji or markdown unless absolutely necessary. Plain text reply only. Here is room logs \"" + context + " \". For memory, you should know that a markov chain with memory of euphoria chats will reply with: \"" + generate(text).slice(0,30) + "...\" keep in mind its just a markov chain with memory of euphoria and that you are a seperate helpful AI chatter. Focus on prompt which is the following: " + promptMatch[1].trim();
+        const prompt = "You are the AI part of a bot called @markovbot, but you are a smart ai for euphoria, a chat room system like @grok is to x.com. maker: @peterforever + vibe coded with: gemini/deepseek/mistral | comands users can use on @markovbot !help, !ping, !markov [seed], @ai [prompt], !search [phrase]. You can use \"!tell @name something\" to send a message to someone via anouther bot called @TellBot. Euphoria has many other bots, use !ping to find a list. You are in " + room + " room on euphoria. This prompt given by user @" + sender + " using the '@ai prompt' comand. Answer simply and try to answer in 20 words with no emoji or markdown unless absolutely necessary. Plain text reply only. Here is room logs \"" + context + " \". For memory, you should know that a markov chain with memory of euphoria chats will reply with: \"" + generate(text).slice(0,30) + "...\" keep in mind its just a markov chain with memory of euphoria and that you are a seperate helpful AI chatter. Focus on prompt which is the following: " + promptMatch[1].trim();
         if (!prompt) return;
         
         roomLog(room, `@ai call from @${sender}: ${text}`);
@@ -825,9 +825,9 @@
             }
 
             if (packet.type === 'send-reply') {
-                addMessageToNotifyList(roomName, packet.sender.name, packet.content, packet.id);
+                addMessageToNotifyList(roomName, packet.sender.name, packet.content, packet.data.id);
                 // Add to chat records
-                addToChatRecords(roomName, packet.sender.name, packet.content, packet.id);
+                addToChatRecords(roomName, packet.sender.name, packet.content, packet.data.id);
                 return;
             }
 
