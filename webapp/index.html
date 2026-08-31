@@ -43,6 +43,16 @@
         /* AI Response Styling */
         .ai-response { border-left: 3px solid #0066cc; padding-left: 10px; margin: 8px 0; background: rgba(0,102,204,0.05); }
         .ai-thinking { color: #aaa; font-style: italic; }
+        
+        /* Search Panel Styles */
+        .search-controls { padding: 10px; border-bottom: 1px solid #333; display:flex; gap:8px; align-items:center; }
+        .search-list { height: 200px; overflow-y: auto; background: #0b0b0b; border-top: 1px solid #222; padding: 8px; font-family: monospace; font-size: 12px; }
+        .search-item { padding: 6px; border-bottom: 1px solid #111; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
+        .search-item.selected { background: rgba(0,255,0,0.06); }
+        .search-meta { color: #999; font-size: 11px; }
+        .search-text { flex: 1; }
+        .delete-btn { background: #cc0000; color: white; border: none; padding: 2px 6px; cursor: pointer; font-size: 10px; border-radius: 3px; }
+        .search-results-info { color: #aaa; font-size: 11px; margin-bottom: 5px; }
     </style>
 </head>
 <body>
@@ -60,6 +70,18 @@
             <button onclick="testAiConnection()">Test Connection</button>
         </div>
         <div id="aiStatus" class="ai-status">API key not configured</div>
+    </div>
+
+    <!-- Search Panel -->
+    <div class="controls">
+        <strong>🔍 Chat Search & Records</strong>
+        <div class="search-controls">
+            <input type="text" id="searchInput" placeholder="Search previous chats..." style="flex: 1;">
+            <button onclick="performSearch()">Search</button>
+            <button onclick="clearSearch()" class="btn-red">Clear</button>
+        </div>
+        <div id="searchResultsInfo" class="search-results-info"></div>
+        <div id="searchResults" class="search-list"></div>
     </div>
 
     <div class="controls">
@@ -125,6 +147,10 @@
     // AI State
     var aiBusy = false;
 
+    // Chat Records - Shared across rooms
+    var chatRecords = {};
+    var maxChatRecords = 1000;
+
     // ---------- LOCALSTORAGE PERSISTENCE ----------
     function saveBrain() {
         try {
@@ -171,12 +197,135 @@
         }
     }
 
+    // ---------- CHAT RECORDS PERSISTENCE ----------
+    function saveChatRecords() {
+        try {
+            localStorage.setItem('markov_chat_records', JSON.stringify(chatRecords));
+        } catch(e) {
+            gLog("⚠️ Failed to save chat records: " + e);
+        }
+    }
+
+    function loadChatRecords() {
+        try {
+            var data = localStorage.getItem('markov_chat_records');
+            if (data) {
+                chatRecords = JSON.parse(data);
+                gLog("📝 Chat records loaded from local storage.");
+            }
+        } catch(e) {
+            gLog("⚠️ Failed to load chat records: " + e);
+        }
+    }
+
+    // Add message to chat records
+    function addToChatRecords(room, sender, text, messageId) {
+        if (!chatRecords[room]) {
+            chatRecords[room] = [];
+        }
+        
+        chatRecords[room].unshift({
+            id: messageId || 'msg-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9),
+            sender: sender,
+            text: text,
+            timestamp: Date.now(),
+            room: room
+        });
+        
+        // Limit records per room
+        if (chatRecords[room].length > maxChatRecords) {
+            chatRecords[room].pop();
+        }
+        
+        saveChatRecords();
+    }
+
+    // Delete a chat record
+    function deleteChatRecord(room, messageId) {
+        if (chatRecords[room]) {
+            chatRecords[room] = chatRecords[room].filter(function(msg) {
+                return msg.id !== messageId;
+            });
+            saveChatRecords();
+            performSearch(); // Refresh search results
+        }
+    }
+
+    // Search chat records
+    function searchChatRecords(query) {
+        var results = [];
+        var lowerQuery = query.toLowerCase();
+        
+        for (var room in chatRecords) {
+            chatRecords[room].forEach(function(msg) {
+                if (msg.text.toLowerCase().includes(lowerQuery)) {
+                    results.push({
+                        room: room,
+                        sender: msg.sender,
+                        text: msg.text,
+                        id: msg.id,
+                        timestamp: msg.timestamp
+                    });
+                }
+            });
+        }
+        
+        // Sort by timestamp (newest first)
+        results.sort(function(a, b) {
+            return b.timestamp - a.timestamp;
+        });
+        
+        return results;
+    }
+
+    // Perform search
+    function performSearch() {
+        var query = document.getElementById('searchInput').value.trim();
+        var resultsContainer = document.getElementById('searchResults');
+        var resultsInfo = document.getElementById('searchResultsInfo');
+        
+        if (!query) {
+            resultsContainer.innerHTML = '';
+            resultsInfo.textContent = '';
+            return;
+        }
+        
+        var results = searchChatRecords(query);
+        
+        resultsInfo.textContent = `Found ${results.length} results for "${query}"`;
+        
+        if (results.length === 0) {
+            resultsContainer.innerHTML = '<div class="search-item"><span class="search-text">No results found</span></div>';
+            return;
+        }
+        
+        resultsContainer.innerHTML = '';
+        results.forEach(function(result) {
+            var item = document.createElement('div');
+            item.className = 'search-item';
+            item.innerHTML = `
+                <div style="display: flex; flex-direction: column;">
+                    <div class="search-meta">[&${result.room}] ${result.sender} • ${new Date(result.timestamp).toLocaleTimeString()}</div>
+                    <div class="search-text">${escapeHtml(result.text)}</div>
+                </div>
+                <button class="delete-btn" onclick="deleteChatRecord('${result.room}', '${result.id}'); event.stopPropagation();">Delete</button>
+            `;
+            resultsContainer.appendChild(item);
+        });
+    }
+
+    // Clear search
+    function clearSearch() {
+        document.getElementById('searchInput').value = '';
+        document.getElementById('searchResults').innerHTML = '';
+        document.getElementById('searchResultsInfo').textContent = '';
+    }
+
     // ---------- AI KEY MANAGEMENT ----------
     function saveApiKey() {
         mistralApiKey = document.getElementById('mistralApiKey').value.trim();
         if (mistralApiKey) {
             try {
-                // Store encrypted in sessionStorage (cleared when tab closes)
                 sessionStorage.setItem('mistral_api_key', mistralApiKey);
                 updateAiStatus(true);
                 gLog("🔑 Mistral API key saved to session storage");
@@ -300,14 +449,13 @@
         const promptMatch = text.match(/@ai\s+(.+)/i);
         if (!promptMatch) return;
         
-        const prompt = "You the AI part of a bot called @markovbot, but you are a smart ai for euphoria, a chat room system like @grok is to x.com. maker: @peterforever + vibe coded with: gemini/deepseek/mistral | comands users can use on @markovbot !help, !ping, !markov [seed], @ai [prompt]. You can use \"!tell @name something\" to send a message to someone via anouther bot called @TellBot. Euphoria has many other bots, use !ping to find a list. You are in " + room + "room on euphoria. This prompt given by user @" + sender + " using the '@ai prompt' comand. Answer simply and try to answer in 20 words with no emoji or markdown unless absolutely necessary. Plain text reply only. Here is room logs \"" + context + " \". For memory, you should know that a markov chain with memory of euphoria chats will reply with: \"" + generate(text).slice(0,30) + "...\" keep in mind its just a markov chain with memory of euphoria and that you are a seperate helpful AI chatter. Focus on prompt which is the following: " + promptMatch[1].trim();
+        const prompt = "You the AI part of a bot called @markovbot, but you are a smart ai for euphoria, a chat room system like @grok is to x.com. maker: @peterforever + vibe coded with: gemini/deepseek/mistral | comands users can use on @markovbot !help, !ping, !markov [seed], @ai [prompt], !search [phrase]. You can use \"!tell @name something\" to send a message to someone via anouther bot called @TellBot. Euphoria has many other bots, use !ping to find a list. You are in " + room + " room on euphoria. This prompt given by user @" + sender + " using the '@ai prompt' comand. Answer simply and try to answer in 20 words with no emoji or markdown unless absolutely necessary. Plain text reply only. Here is room logs \"" + context + " \". For memory, you should know that a markov chain with memory of euphoria chats will reply with: \"" + generate(text).slice(0,30) + "...\" keep in mind its just a markov chain with memory of euphoria and that you are a seperate helpful AI chatter. Focus on prompt which is the following: " + promptMatch[1].trim();
         if (!prompt) return;
         
         roomLog(room, `@ai call from @${sender}: ${text}`);
         aiBusy = true;
         
         try {
-            
             const response = await callMistralAPI(prompt);
             
             if (response && response.choices && response.choices[0] && response.choices[0].message) {
@@ -323,7 +471,10 @@
                         parent: messageId
                     }
                 }));
-                // warn
+                
+                // Add to chat records
+                addToChatRecords(room, "markovbot(AI)", aiResponse, 'ai-' + Date.now());
+                
                 connection.send(JSON.stringify({
                     type: 'send',
                     data: {
@@ -335,7 +486,7 @@
                 connection.send(JSON.stringify({ type: 'nick', data: { name: BOT_NAME } }));
                 
                 roomLog(room, `🤖 AI Response: ${aiResponse.substring(0, 1000)}${aiResponse.length > 1000 ? '...' : ''}`);
-                train(aiResponse)
+                train(aiResponse);
             } else {
                 roomLog(room, "❌ AI returned an invalid response format");
             }
@@ -344,6 +495,39 @@
         } finally {
             aiBusy = false;
         }
+    }
+
+    // Handle search command
+    function handleSearchCommand(room, sender, text, messageId, connection) {
+        const searchMatch = text.match(/!search\s+(.+)/i);
+        if (!searchMatch) return false;
+        
+        const query = searchMatch[1].trim();
+        const results = searchChatRecords(query);
+        
+        if (results.length === 0) {
+            connection.send(JSON.stringify({
+                type: 'send',
+                data: {
+                    content: `No results found for "${query}"`,
+                    parent: messageId
+                }
+            }));
+        } else {
+            const resultText = results.slice(0, 3).map(r => 
+                `[&${r.room}] ${r.sender}: ${r.text.substring(0, 50)}${r.text.length > 50 ? '...' : ''}`
+            ).join(' | ');
+            
+            connection.send(JSON.stringify({
+                type: 'send',
+                data: {
+                    content: `Search results for "${query}": ${resultText}${results.length > 3 ? ` (+${results.length - 3} more)` : ''}`,
+                    parent: messageId
+                }
+            }));
+        }
+        
+        return true;
     }
 
     // ---------- NOTIFY LOCALSTORAGE ----------
@@ -526,20 +710,28 @@
         ws.onopen = function() {
             gLog("Successfully connected to &" + roomName);
             roomLog(roomName, "--- TERMINAL OPENED: BOT ONLINE ---");
-            ws.send(JSON.stringify({ type: 'nick', data: { name: BOT_NAME } }));
+            
+            // Initial Handshake: Wait for ping-event
+            roomLog(roomName, "Waiting for server ping...");
         };
 
         ws.onmessage = function(e) {
             var packet = JSON.parse(e.data);
             
+            // Handle Initial Handshake
             if (packet.type === 'ping-event') {
-                ws.send(JSON.stringify({ type: 'ping-reply', data: { time: packet.data.time } }));
+                roomLog(roomName, "Received ping-event, replying...");
+                ws.send(JSON.stringify({ 
+                    type: 'ping-reply', 
+                    data: { time: packet.data.time } 
+                }));
                 return;
             }
 
             if (packet.type === 'snapshot-event') {
                 ready = true;
                 roomLog(roomName, "--- Room snapshot received (bot ready) ---");
+                ws.send(JSON.stringify({ type: 'nick', data: { name: BOT_NAME } }));
                 return;
             }
 
@@ -556,6 +748,8 @@
                 try {
                     if (text && sender !== BOT_NAME) {
                         addMessageToNotifyList(roomName, data.sender.name, text, data.id);
+                        // Add to chat records
+                        addToChatRecords(roomName, data.sender.name, text, data.id);
                     }
                 } catch(err) { /* non-fatal */ }
 
@@ -563,6 +757,13 @@
 
                 var lowerText = text.toLowerCase();
                 var isMentioned = (lowerText.indexOf('@' + BOT_NAME) !== -1);
+
+                // Check for !search command
+                if (lowerText.startsWith('!search')) {
+                    if (handleSearchCommand(roomName, data.sender.name, text, data.id, ws)) {
+                        return;
+                    }
+                }
 
                 // Check for @ai command
                 if (lowerText.includes('@ai')) {
@@ -584,7 +785,7 @@
 
                 // Bot responses
                 if (lowerText.includes("!help @markovbot")) {
-                    ws.send(JSON.stringify({ type: 'send', data: { content: "markovbot, a markov chain bot, n-gram (1-4) | maker: @peterforever + vibe coded with: gemini/deepseek/mistral | !help, !ping, !markov, @ai [prompt]", parent: data.id }}));
+                    ws.send(JSON.stringify({ type: 'send', data: { content: "markovbot, a markov chain bot, n-gram (1-4) | maker: @peterforever + vibe coded with: gemini/deepseek/mistral | !help, !ping, !markov, @ai [prompt], !search [phrase]", parent: data.id }}));
                 }
                 else if (lowerText === '!ping' || (isMentioned && lowerText.indexOf('!ping') !== -1)) {
                     ws.send(JSON.stringify({ type: 'send', data: { content: "pong! 🏓", parent: data.id }}));
@@ -669,6 +870,10 @@
 
             recentMessages.unshift({ room: room, sender: usr, text: text, id: 'local-' + Date.now(), ts: Date.now() });
             if (recentMessages.length > maxMessages) recentMessages.pop();
+            
+            // Add to chat records
+            addToChatRecords(room, usr, text, 'local-' + Date.now());
+            
             document.getElementById('notifyReplyText').value = '';
             renderNotifyList();
         } catch(e) {
@@ -695,6 +900,10 @@
 
             recentMessages.unshift({ room: room, sender: usr, text: text, id: 'local-' + Date.now(), ts: Date.now() });
             if (recentMessages.length > maxMessages) recentMessages.pop();
+            
+            // Add to chat records
+            addToChatRecords(room, usr, text, 'local-' + Date.now());
+            
             document.getElementById('notifyReplyText').value = '';
             renderNotifyList();
         } catch(e) {
@@ -721,6 +930,10 @@
 
             recentMessages.unshift({ room: room, sender: usr, text: text, id: 'local-' + Date.now(), ts: Date.now() });
             if (recentMessages.length > maxMessages) recentMessages.pop();
+            
+            // Add to chat records
+            addToChatRecords(room, usr, text, 'local-' + Date.now());
+            
             document.getElementById('notifyReplyText').value = '';
             renderNotifyList();
         } catch(e) {
@@ -745,6 +958,7 @@
 
     // ---------- INITIALIZATION ----------
     loadBrain();
+    loadChatRecords();
     loadUsername();
     loadApiKey();
 
@@ -756,6 +970,13 @@
         en.onchange = function() { notifyEnabled = en.checked; saveNotifyPrefs(); };
         auto.onchange = function() { notifyAutoScroll = auto.checked; saveNotifyPrefs(); };
         document.getElementById('notifyUsername').onchange = function() { /* lazy */ };
+        
+        // Search input event
+        document.getElementById('searchInput').addEventListener('keyup', function(e) {
+            if (e.key === 'Enter') {
+                performSearch();
+            }
+        });
     });
 
     var savedRooms = localStorage.getItem('markov_rooms');
@@ -764,7 +985,8 @@
     }
 
     if (Object.keys(connections).length === 0) {
-        addRoom('test');
+        // Auto-connect to a default room if none exist
+        // You can change this or remove it
     }
 </script>
 </body>
