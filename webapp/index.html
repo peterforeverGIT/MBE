@@ -761,11 +761,11 @@
                 id: ${msg.id}
                 parent: ${msg.parent || 'null'}
                 time: ${msg.time}
-                sender: ${JSON.stringify(msg.sender)}
+                sender: ${msg.sender.name}
                 content: ${msg.content}
                     `);
                     train(msg.content);
-                    addToChatRecords(roomName, msg.sender, msg.content, msg.id);
+                    addToChatRecords(roomName, msg.sender.name, msg.content, msg.id);
                     addMessageToNotifyList(roomName, msg.sender, msg.content, msg.id)
                 }
                 roomLog(roomName, "-------------------- **USERS** -----------------------")
@@ -984,7 +984,7 @@
         const logsText = document.getElementById('logsText');
     
         if (logs) {
-           logsText.value = JSON.stringify(JSON.parse(logs), null, 2);
+            logsText.value = JSON.stringify(JSON.parse(logs), null, 2);
         } else {
             logsText.value = "No logs found in localStorage";
         }
