@@ -734,7 +734,7 @@
             if (packet.type === 'snapshot-event') {
                 ready = true;
                 
-                roomLog(roomName, "---Room snapshot---);
+                roomLog(roomName, "---Room snapshot---");
                 ws.send(JSON.stringify({ type: 'nick', data: { name: BOT_NAME } }));
                 roomLog(roomName, "listing: " + packet.data.listing);
                 roomLog(roomName, "log: " + packet.data.log);
