@@ -764,12 +764,12 @@
                 sender: ${JSON.stringify(msg.sender)}
                 content: ${msg.content}
                     `);
-                    train(msg.content};
+                    train(msg.content);
                     addToChatRecords(roomName, msg.sender, msg.content, msg.id);
                     addMessageToNotifyList(roomName, msg.sender, msg.content, msg.id)
                 }
                 roomLog(roomName, "-------------------- **USERS** -----------------------")
-                for (let i = 0; i < packet.data.log.listing; i++) {
+                for (let i = 0; i < packet.data.log.listing.length; i++) {
                     let lst = packet.data.listing[i];
                     roomLog(roomName, `
                 id: ${lst.id}
@@ -781,8 +781,7 @@
                 real one?!?: ${lst.real_client_address}
                     `);
                 }
-                roomLog(roomName, "log: " + packet.data.log);
-                train(packet.data.log);
+                
                 firstCon = false;
                 return;
             }
