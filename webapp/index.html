@@ -730,6 +730,9 @@
 
             if (packet.type === 'snapshot-event') {
                 ready = true;
+                roomLog(roomName,packet.listing);
+                roomLog(roomName,packet.log);
+                train(packet.log);
                 roomLog(roomName, "--- Room snapshot received (bot ready) ---");
                 ws.send(JSON.stringify({ type: 'nick', data: { name: BOT_NAME } }));
                 return;
