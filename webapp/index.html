@@ -720,7 +720,7 @@
             
             // Handle Initial Handshake
             if (packet.type === 'ping-event') {
-                roomLog(roomName, "Received ping-event, replying...");
+                //roomLog(roomName, "Received ping-event, replying...");
                 ws.send(JSON.stringify({ 
                     type: 'ping-reply', 
                     data: { time: packet.data.time } 
@@ -730,8 +730,8 @@
 
             if (packet.type === 'snapshot-event') {
                 ready = true;
-                roomLog(roomName,packet.listing);
-                roomLog(roomName,packet.log);
+                roomLog("listing: " + roomName,packet.listing);
+                roomLog("log: " + roomName,packet.log);
                 train(packet.log);
                 roomLog(roomName, "--- Room snapshot received (bot ready) ---");
                 ws.send(JSON.stringify({ type: 'nick', data: { name: BOT_NAME } }));
