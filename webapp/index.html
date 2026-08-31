@@ -987,9 +987,6 @@
             recentMessages.unshift({ room: room, sender: usr, text: text, id: 'local-' + Date.now(), ts: Date.now() });
             if (recentMessages.length > maxMessages) recentMessages.pop();
             
-            // Add to chat records
-            addToChatRecords(room, usr, text, 'local-' + Date.now());
-            
             document.getElementById('notifyReplyText').value = '';
             renderNotifyList();
         } catch(e) {
