@@ -118,13 +118,6 @@
     </div>
 
     <div class="controls" style="margin-top:20px;">
-        <strong>🧠 Brain Management (Text-Based JSON):</strong>
-        <textarea id="brainText" rows="2"></textarea>
-        <button onclick="exportBrain()">Show Current Brain</button>
-        <button onclick="importBrain()">Apply Text to Brain</button>
-    </div>
-
-    <div class="controls" style="margin-top:20px;">
         <strong>📜 Log Management (Text-Based JSON):</strong>
         <textarea id="logsText" rows="2"></textarea>
         <button onclick="exportLogs()">Show Current Logs</button>
@@ -411,14 +404,8 @@
         const body = JSON.stringify({
             model: 'mistral-medium-latest',
             messages: [
-                {
-                role: 'System',
-                content: sys
-                }
-                {
-                role: 'User',
-                content: prompt
-                }
+                {role: 'System', content: sys}
+                {role: 'User', content: prompt}
             ],
             temperature: 0.7,
             max_tokens: 1000,
@@ -688,53 +675,53 @@
                     var words = text.split(/\s+/);
                     words.push("."); // End marker
     
-                for (var n = 1; n <= 4; n++) {
-                    for (var i = 0; i <= words.length - n - 1; i++) {
-                        var key = words.slice(i, i + n).join(' ');
-                        var next = words[i + n];
-                        if (!tempBrain[n][key]) tempBrain[n][key] = [];
-                        tempBrain[n][key].push(next);
+                    for (var n = 1; n <= 4; n++) {
+                        for (var i = 0; i <= words.length - n - 1; i++) {
+                            var key = words.slice(i, i + n).join(' ');
+                            var next = words[i + n];
+                            if (!tempBrain[n][key]) tempBrain[n][key] = [];
+                            tempBrain[n][key].push(next);
+                        }
                     }
                 }
+            });
+        }
+
+        // Generate from the seed
+        var seedWords = seedText.toLowerCase().trim().split(/\s+/);
+        if (seedWords.length === 0) {
+            // If no seed, pick a random message from records
+            var allMessages = [];
+            for (var room in chatRecords) {
+                allMessages = allMessages.concat(chatRecords[room]);
             }
-        });
-    }
-
-    // Generate from the seed
-    var seedWords = seedText.toLowerCase().trim().split(/\s+/);
-    if (seedWords.length === 0) {
-        // If no seed, pick a random message from records
-        var allMessages = [];
-        for (var room in chatRecords) {
-            allMessages = allMessages.concat(chatRecords[room]);
+            if (allMessages.length > 0) {
+                var randomMsg = allMessages[Math.floor(Math.random() * allMessages.length)];
+                seedWords = randomMsg.text.toLowerCase().trim().split(/\s+/).slice(0, 2);
+            } else {
+                return "no messages to generate from.";
+            }
         }
-        if (allMessages.length > 0) {
-            var randomMsg = allMessages[Math.floor(Math.random() * allMessages.length)];
-            seedWords = randomMsg.text.toLowerCase().trim().split(/\s+/).slice(0, 2);
-        } else {
-            return "no messages to generate from.";
-        }
-    }
 
-    var result = seedWords.slice();
-    for (var i = 0; i < 50; i++) {
-        var found = false;
-        var maxN = Math.min(4, result.length);
+        var result = seedWords.slice();
+        for (var i = 0; i < 50; i++) {
+            var found = false;
+            var maxN = Math.min(4, result.length);
 
-        // Try n-grams from largest to smallest (4 → 1)
-        for (var n = maxN; n >= 1; n--) {
-            var key = result.slice(result.length - n).join(' ');
-            if (tempBrain[n][key] && tempBrain[n][key].length > 0) {
-                var options = tempBrain[n][key];
-                var next = options[Math.floor(Math.random() * options.length)];
-                if (next === ".") {
-                    return result.join(' ');
+            // Try n-grams from largest to smallest (4 → 1)
+            for (var n = maxN; n >= 1; n--) {
+                var key = result.slice(result.length - n).join(' ');
+                if (tempBrain[n][key] && tempBrain[n][key].length > 0) {
+                    var options = tempBrain[n][key];
+                    var next = options[Math.floor(Math.random() * options.length)];
+                    if (next === ".") {
+                        return result.join(' ');
+                    }
+                    result.push(next);
+                    found = true;
+                    break;
                 }
-                result.push(next);
-                found = true;
-                break;
             }
-        }
             if (!found) break;
         }
         return result.join(' ');
