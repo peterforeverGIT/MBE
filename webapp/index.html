@@ -13,8 +13,6 @@
             margin: 0; 
         }
         .container { max-width: 1000px; margin: auto; }
-        
-        /* Global Log Style */
         #globalLog { 
             background: #000; 
             border: 1px solid #444; 
@@ -27,7 +25,6 @@
             border-radius: 4px; 
             color:#dcdcdc 
         }
-        
         .controls { 
             background: #2a2a2a; 
             padding: 15px; 
@@ -35,8 +32,6 @@
             border: 1px solid #444; 
             margin-bottom: 10px; 
         }
-        
-        /* Tab System */
         .tabs { 
             display: flex; 
             overflow-x: auto; 
@@ -68,7 +63,6 @@
             border-radius: 0 0 5px 5px; 
             color: #00ff00; 
         }
-        
         input, textarea { 
             width: 100%; 
             background: #000; 
@@ -109,8 +103,6 @@
             margin-bottom: 4px; 
             border-bottom: 1px solid #111; 
         }
-        
-        /* AI Section Styles */
         .ai-controls { 
             background: #1e1e1e; 
             padding: 12px; 
@@ -125,8 +117,6 @@
         }
         .ai-status.connected { color: #00ff00; }
         .ai-status.disconnected { color: #ff5555; }
-        
-        /* Notify panel styles */
         .notify-controls { 
             padding: 10px; 
             border-bottom: 1px solid #333; 
@@ -158,8 +148,6 @@
         .notify-reply { margin-top: 8px; }
         .small { font-size: 11px; padding: 6px; }
         .big { padding: 12px 18px; font-size: 14px; }
-        
-        /* AI Response Styling */
         .ai-response { 
             border-left: 3px solid #0066cc; 
             padding-left: 10px; 
@@ -170,8 +158,6 @@
             color: #aaa; 
             font-style: italic; 
         }
-        
-        /* Search Panel Styles */
         .search-controls { 
             padding: 10px; 
             border-bottom: 1px solid #333; 
@@ -218,8 +204,6 @@
             font-size: 11px; 
             margin-bottom: 5px; 
         }
-        
-        /* Status bar for file protocol warning */
         #fileProtocolWarning {
             background: #ff5555;
             color: white;
@@ -236,11 +220,8 @@
         <div id="fileProtocolWarning" style="display: none;">
             ⚠️ WARNING: This app requires a web server. Open via HTTP/HTTPS (not file://) for full functionality.
         </div>
-        
         <h3>🌐 Global Connection Log</h3>
         <div id="globalLog"></div>
-
-        <!-- AI Configuration Section -->
         <div class="ai-controls">
             <strong>🤖 Mistral AI Configuration</strong>
             <div style="display: flex; gap: 5px; margin-top: 8px;">
@@ -250,8 +231,6 @@
             </div>
             <div id="aiStatus" class="ai-status">API key not configured</div>
         </div>
-
-        <!-- Search Panel -->
         <div class="controls">
             <strong>🔍 Chat Search & Records</strong>
             <div class="search-controls">
@@ -262,14 +241,12 @@
             <div id="searchResultsInfo" class="search-results-info"></div>
             <div id="searchResults" class="search-list"></div>
         </div>
-
         <div class="controls">
             <div style="display:flex; gap: 5px;">
                 <input type="text" id="newRoom" placeholder="Enter room name (e.g. test)">
                 <button onclick="addRoom()">Connect & Open Terminal</button>
             </div>
         </div>
-
         <div class="tabs" id="tabBar">
             <button class="tab-btn" id="btn-notify" onclick="switchTab('notify')">💬 Direct Chat</button>
         </div>
@@ -295,14 +272,12 @@
                 </div>
             </div>
         </div>
-
         <div class="controls" style="margin-top:20px;">
             <strong>📜 Log Management (Text-Based JSON):</strong>
             <textarea id="logsText" rows="2"></textarea>
             <button onclick="exportLogs()">Show Current Logs</button>
             <button onclick="importLogs()">Apply Text to Logs</button>
         </div>
-
         <span class="maker-tag">Maker: peterforever + gemini + mistral</span>
     </div>
 
@@ -324,21 +299,23 @@
         var isFileProtocol = window.location.protocol === 'file:';
 
         // === INITIALIZATION ===
+        function initializeBrain() {
+            // Ensure brain has the correct structure
+            brain = { 1: {}, 2: {}, 3: {}, 4: {} };
+        }
+
         window.addEventListener('DOMContentLoaded', function() {
-            // Show warning if using file protocol
             if (isFileProtocol) {
                 document.getElementById('fileProtocolWarning').style.display = 'block';
                 gLog("⚠️ Running in file:// mode. WebSocket and localStorage will NOT work. Use a web server!");
             }
-
-            // Load all persisted data
+            initializeBrain();
             loadBrain();
             loadRooms();
             loadChatRecords();
             loadApiKey();
             loadUsername();
             loadNotifyPrefs();
-
             gLog("✅ App initialized. Brain, rooms, and chat records loaded.");
         });
 
@@ -358,13 +335,21 @@
             try {
                 var data = localStorage.getItem('markov_brain');
                 if (data) {
-                    brain = JSON.parse(data);
+                    var loadedBrain = JSON.parse(data);
+                    // Validate and merge with default structure
+                    for (var n = 1; n <= 4; n++) {
+                        if (!loadedBrain[n]) {
+                            loadedBrain[n] = {};
+                        }
+                    }
+                    brain = loadedBrain;
                     gLog("🧠 Brain loaded from local storage.");
                 } else {
                     gLog("🧠 No existing brain found. Starting fresh.");
                 }
             } catch(e) {
                 gLog("⚠️ Failed to load brain: " + e.message);
+                initializeBrain(); // Reset to default if loading fails
             }
         }
 
@@ -422,7 +407,6 @@
             if (!chatRecords[room]) {
                 chatRecords[room] = [];
             }
-            // Avoid duplicates
             deleteChatRecordByText(room, text);
             chatRecords[room].unshift({
                 id: messageId || 'msg-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9),
@@ -582,7 +566,6 @@
             }
         }
 
-        // === MISTRAL API CALL ===
         async function callMistralAPI(sys, prompt) {
             if (!mistralApiKey) {
                 throw new Error("Mistral API key not configured");
@@ -631,7 +614,7 @@
                   .map(line => line.textContent)
                   .join('\n')
             : 'No context';
-            const sys = "You are the AI chat bot part of a bot called @markovbot, but you are a smart ai for euphoria, a chat room system like @grok is to x.com. maker: @peterforever + vibe coded with: gemini/deepseek/mistral | commands users can use on @markovbot !help, !ping, !markov [seed], @ai [prompt], !search [phrase]. You can use \"!tell @name something\" to send a message to someone via another bot called @TellBot. Euphoria has many other bots, use !ping to find a list. You are in " + room + " room on euphoria. This prompt given by user @" + sender + " using the '@ai prompt' command. Answer simply and try to answer in 20 words with no emoji or markdown unless absolutely necessary. Plain text reply only. Here is room logs \"" + context + "\". For memory, you can output the array with a \"!search <term>\". ALWAYS respond with a JSON array of strings, like: [\"response 1\", \"response 2\"]. If you only have one response, still wrap it in an array: [\"single response\"]. To call a command, it has to be a separate message in the array. You can use the \"!selfcall <self prompt (optional with room logs)>\" to trigger a self call again in 50 seconds.";
+            const sys = "You are the AI chat bot part of a bot called @markovbot, but you are a smart ai for euphoria, a chat room system. Maker: @peterforever + vibe. Coded with: gemini/deepseek/mistral. Commands: !help, !ping, !markov [seed], @ai [prompt], !search [phrase]. You can use \"!tell @name something\" to send a message via @TellBot. You are in " + room + " room on euphoria. This prompt given by user @" + sender + " using the '@ai' command. Answer simply in 20 words or less. Plain text only. Here are room logs: \"" + context + "\". ALWAYS respond with a JSON array of strings, e.g.: [\"response 1\", \"response 2\"]. Use \"!selfcall <prompt>\" to trigger a self-call in 50 seconds.";
             const prompt = text.trim();
             if (!prompt) return;
             roomLog(room, `@${sender} prompted: ${text}`);
@@ -696,7 +679,6 @@
             }
         }
 
-        // === SEARCH COMMAND ===
         function handleSearchCommand(room, sender, text, messageId, connection) {
             const searchMatch = text.match(/!search\s+(.+)/i);
             if (!searchMatch) return false;
@@ -817,17 +799,28 @@
             }
         }
 
-        // === MARKOV CHAIN ===
+        // === MARKOV CHAIN (FIXED) ===
         function train(text) {
             if (!text || typeof text !== 'string') return;
+            
+            // Ensure brain has the correct structure
+            for (var n = 1; n <= 4; n++) {
+                if (!brain[n]) {
+                    brain[n] = {};
+                }
+            }
+            
             var words = text.toLowerCase().trim().split(/\s+/);
             if (words.length === 0) return;
             words.push("."); // End marker
+            
             for (var n = 1; n <= 4; n++) {
                 for (var i = 0; i <= words.length - n - 1; i++) {
                     var key = words.slice(i, i + n).join(' ');
                     var next = words[i + n];
-                    if (!brain[n][key]) brain[n][key] = [];
+                    if (!brain[n][key]) {
+                        brain[n][key] = [];
+                    }
                     brain[n][key].push(next);
                 }
             }
@@ -838,6 +831,8 @@
             if (Object.keys(chatRecords).length === 0) {
                 loadChatRecords();
             }
+            
+            // Build a temporary brain from ALL chat records
             var tempBrain = { 1: {}, 2: {}, 3: {}, 4: {} };
             for (var room in chatRecords) {
                 chatRecords[room].forEach(function(msg) {
@@ -850,13 +845,16 @@
                             for (var i = 0; i <= words.length - n - 1; i++) {
                                 var key = words.slice(i, i + n).join(' ');
                                 var next = words[i + n];
-                                if (!tempBrain[n][key]) tempBrain[n][key] = [];
+                                if (!tempBrain[n][key]) {
+                                    tempBrain[n][key] = [];
+                                }
                                 tempBrain[n][key].push(next);
                             }
                         }
                     }
                 });
             }
+
             var seedWords = seedText.toLowerCase().trim().split(/\s+/);
             if (seedWords.length === 0) {
                 var allMessages = [];
@@ -870,6 +868,7 @@
                     return "no messages to generate from.";
                 }
             }
+
             var result = seedWords.slice();
             for (var i = 0; i < 50; i++) {
                 var found = false;
@@ -1044,7 +1043,7 @@
                             ws.send(JSON.stringify({ 
                                 type: 'send', 
                                 data: { 
-                                    content: "@markovbot, a **4** in one, multi functional bot. It is a: \n - markov chain bot, n-gram (1-4) with !markov <seed texts>\n - ai router to euphoria with @ai <prompt> \n - euphoria multi room logs search bot with !search <phrase> \n - euphoria frontend client to hoster with the web app https://peterforevergit.github.io/MBE/webapp/ (using requires configuration ask @peterforever for more)\n | maker: @peterforever + vibe coded with: gemini/deepseek/mistral | commands: !help, !ping, !markov, @ai [prompt], !search [phrase]", 
+                                    content: "@markovbot: Markov chain bot (n-gram 1-4) with !markov <seed>. AI router with @ai <prompt>. Search logs with !search <phrase>. Web app: https://peterforevergit.github.io/MBE/webapp/ | Maker: @peterforever + vibe | Commands: !help, !ping, !markov, @ai, !search", 
                                     parent: data.id 
                                 }
                             }));
