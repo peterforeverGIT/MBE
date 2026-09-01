@@ -630,21 +630,20 @@
                             replies.forEach((reply, index) => {
                                 const selfCallMatch = reply.match(/^!selfcall\s*(.*)$/i);
                                 if (selfCallMatch) {
-                                    const selfPrompt = "AI (yourself) selfcalled:" selfCallMatch[1].trim() || text;
+                                    const selfPrompt = "AI (yourself) selfcalled:" + selfCallMatch[1].trim() || text;
                                     setTimeout(() => {
                                         roomLog(room, `Self-call scheduled after 50s: ${selfPrompt.substring(0, 50)}...`);
                                         handleAiPrompt(room, "AI self callback", `@ai ${selfPrompt}`, messageId , connection)
                                             .catch(e => roomLog(room, `Scheduled AI call failed: ${e.message}`));
                                     }, 10000);
                                 }
-                                setTimeout(() => {
-                                    if (connection.readyState === WebSocket.OPEN) {
-                                        connection.send(JSON.stringify({
-                                            type: 'send',
-                                            data: { content: reply, parent: messageId }
-                                        }));
-                                    }
-                                }, index);
+                                
+                                if (connection.readyState === WebSocket.OPEN) {
+                                    connection.send(JSON.stringify({
+                                        type: 'send',
+                                        data: { content: reply, parent: messageId }
+                                    }));
+                                }
                             });
                         } else {
                             if (connection.readyState === WebSocket.OPEN) {
