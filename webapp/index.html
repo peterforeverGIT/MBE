@@ -603,10 +603,10 @@
                 roomLog(room, "AI not configured - no API key");
                 return;
             }
-            if (aiBusy) {
-                roomLog(room, "AI is busy processing another request");
-                return;
-            }
+            //if (aiBusy) {
+            //    roomLog(room, "AI is busy processing another request");
+            //    return;
+            //} <- USELESS FOR NOW....
             const term = document.getElementById(`term-${room}`);
             const context = term
                 ? Array.from(term.querySelectorAll('.chat-line'))
@@ -614,7 +614,7 @@
                   .map(line => line.textContent)
                   .join('\n')
             : 'No context';
-            const sys = "You are the AI chat bot part of a bot called @markovbot, but you are a smart ai for euphoria, a chat room system. Maker: @peterforever + vibe. Coded with: gemini/deepseek/mistral. Commands: !help, !ping, !markov [seed], @ai [prompt], !search [phrase]. You can use comands like \"!tell @name something\" to send a message via @TellBot. You are in " + room + " room on euphoria. This prompt given by user @" + sender + " using the '@ai' command. Answer simply in 20 words or less. Plain text only. Here are room logs: \"" + context + "\". ALWAYS respond with a JSON array of strings, e.g.: [\"response\", \"command 1\"]. Use command \"!selfcall <prompt>\" to trigger a self-call in 50 seconds for automatic complex prompts from user. Other commands like !tell can be similatly run like [\" im going to run !tell\",\"!tell @markovbot this message gets relayed to me!\",\"!selfcall look at message\"] use the \"!help\" or \"!ping\" comand to find other bots.";
+            const sys = "You are the AI chat bot part of a bot called @markovbot, but you are a smart ai for euphoria, a chat room system. Maker: @peterforever + vibe. Coded with: gemini/deepseek/mistral. Commands: !help, !ping, !markov [seed], @ai [prompt], !search [phrase]. You can use comands like \"!tell @name something\" to send a message via @TellBot. You are in " + room + " room on euphoria. This prompt given by user @" + sender + " using the '@ai' command. Answer simply in 20 words or less. Plain text only. Here are room logs: \"" + context + "\". ALWAYS respond with a JSON array of strings, e.g.: [\"response\", \"command 1\"]. Use command \"!selfcall <prompt>\" to trigger a self-call in 10 seconds for automatic complex prompts from user and to spawn \"sub agents\". You can then read the message given by the bot you are interacting with, run the commands, and then selfcall again if the bot provides any more commands when you reply to the selfcall. Other commands like !tell can be similatly run like [\" im going to run !tell command\",\"!tell @markovbot this message gets relayed to me!\",\"!selfcall look at message and summarize to user\"] use the \"!help\" or \"!ping\" comand to find other bots.";
             const prompt = text.trim();
             if (!prompt) return;
             roomLog(room, `@${sender} prompted: ${text}`);
@@ -630,12 +630,12 @@
                             replies.forEach((reply, index) => {
                                 const selfCallMatch = reply.match(/^!selfcall\s*(.*)$/i);
                                 if (selfCallMatch) {
-                                    const selfPrompt = selfCallMatch[1].trim() || text;
+                                    const selfPrompt = "AI (yourself) selfcalled:" selfCallMatch[1].trim() || text;
                                     setTimeout(() => {
                                         roomLog(room, `Self-call scheduled after 50s: ${selfPrompt.substring(0, 50)}...`);
-                                        handleAiPrompt(room, "AI self callback", `@ai ${selfPrompt}`, null, connection)
+                                        handleAiPrompt(room, "AI self callback", `@ai ${selfPrompt}`, messageId , connection)
                                             .catch(e => roomLog(room, `Scheduled AI call failed: ${e.message}`));
-                                    }, 50000);
+                                    }, 10000);
                                 }
                                 setTimeout(() => {
                                     if (connection.readyState === WebSocket.OPEN) {
@@ -644,7 +644,7 @@
                                             data: { content: reply, parent: messageId }
                                         }));
                                     }
-                                }, index * 10);
+                                }, index);
                             });
                         } else {
                             if (connection.readyState === WebSocket.OPEN) {
@@ -989,19 +989,22 @@
                 if (packet.type === 'snapshot-event') {
                     roomLog(roomName, "--- Room snapshot ---");
                     ws.send(JSON.stringify({ type: 'nick', data: { name: BOT_NAME } }));
-                    roomLog(roomName, "-------------------- **MSGs** -----------------------");
-                    for (let i = 0; i < packet.data.log.length; i++) {
-                        let msg = packet.data.log[i];
-                        roomLog(roomName, `Previous message, sender: ${msg.sender.name} content: ${msg.content}`);
-                        train(msg.content);
-                        addToChatRecords(roomName, msg.sender.name, msg.content, msg.id);
-                        addMessageToNotifyList(roomName, msg.sender.name, msg.content, msg.id);
-                    }
                     roomLog(roomName, "-------------------- **USERS** -----------------------");
                     for (let i = 0; i < packet.data.listing.length; i++) {
                         let lst = packet.data.listing[i];
                         roomLog(roomName, `name: ${lst.name}`);
                     }
+                    roomLog(roomName, "-------------------- **MSGs** -----------------------");
+                    
+                    for (let i = 0; i < packet.data.log.length; i++) {
+                        let msg = packet.data.log[i];
+                        roomLog(roomName, `@${msg.sender.name}: ${msg.content}`);
+                        train(msg.content);
+                        addToChatRecords(roomName, msg.sender.name, msg.content, msg.id);
+                        addMessageToNotifyList(roomName, msg.sender.name, msg.content, msg.id);
+                    }
+                    roomLog(roomName, "-------------------- **STARTUP** -----------------------");
+                    
                     return;
                 }
                 if (packet.type === 'bounce-event') {
@@ -1023,9 +1026,10 @@
                             addToChatRecords(roomName, data.sender.name, text, data.id);
                         }
                     } catch(err) {}
-                    if (sender === BOT_NAME) return;
+                    
                     var lowerText = text.toLowerCase();
                     var isMentioned = (lowerText.indexOf('@' + BOT_NAME) !== -1);
+                    
                     if (lowerText.startsWith('!search')) {
                         if (handleSearchCommand(roomName, data.sender.name, text, data.id, ws)) {
                             return;
