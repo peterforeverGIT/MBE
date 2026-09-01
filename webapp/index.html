@@ -383,7 +383,7 @@
         gLog("🔍 Testing Mistral AI connection...");
         
         try {
-            const response = await callMistralAPI("Say 'test successful'");
+            const response = await callMistralAPI("","Say 'test successful'");
             if (response && response.choices && response.choices[0]) {
                 gLog("✅ Mistral AI connection test passed!");
             } else {
@@ -397,41 +397,54 @@
     }
 
     // ---------- MISTRAL API CALL ----------
-    async function callMistralAPI(prompt) {
+    async function callMistralAPI(sys, prompt) {
         if (!mistralApiKey) {
             throw new Error("Mistral API key not configured");
         }
-        
+
         const url = 'https://api.mistral.ai/v1/chat/completions';
         const headers = {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${mistralApiKey}`
         };
-        
+
         const body = JSON.stringify({
-            model: 'mistral-large-latest',
+            model: 'mistral-medium-latest',
             messages: [
                 {
-                    role: 'user',
-                    content: prompt
+                role: 'System',
+                content: sys
+                }
+                {
+                role: 'User',
+                content: prompt
                 }
             ],
             temperature: 0.7,
-            max_tokens: 1000
+            max_tokens: 1000,
+            tools: [  // ✅ Enable web search
+                {
+                    type: "web_search",
+                    web_search: {
+                    allow: true,
+                    max_results: 3
+                    }
+                }
+            ]
         });
-        
+
         const response = await fetch(url, {
             method: 'POST',
             headers: headers,
             body: body
         });
-        
+
         if (!response.ok) {
             const errorData = await response.json().catch(() => ({}));
-            throw new Error(`API error: ${response.status} ${response.statusText}` + 
-                           (errorData.message ? ' - ' + errorData.message : ''));
+            throw new Error(`API error: ${response.status} ${response.statusText}` +
+                       (errorData.message ? ' - ' + errorData.message : ''));
         }
-        
+
         return await response.json();
     }
 
@@ -451,7 +464,7 @@
         const term = document.getElementById(`term-${room}`);
         const context = term
             ? Array.from(term.querySelectorAll('.chat-line'))
-              .slice(-5)
+              .slice(-10)
               .map(line => line.textContent)
               .join('\n')
         : 'No context';
@@ -459,33 +472,64 @@
         // Extract the prompt after @ai
         const promptMatch = text.match(/@ai\s+(.+)/i);
         if (!promptMatch) return;
+        const sys = "You are the AI chat bot part of a bot called @markovbot, but you are a smart ai for euphoria, a chat room system like @grok is to x.com. maker: @peterforever + vibe coded with: gemini/deepseek/mistral | comands users can use on @markovbot !help, !ping, !markov [seed], @ai [prompt], !search [phrase]. You can use \"!tell @name something\" to send a message to someone via anouther bot called @TellBot. Euphoria has many other bots, use !ping to find a list. You are in " + room + " room on euphoria. This prompt given by user @" + sender + " using the '@ai prompt' comand. Answer simply and try to answer in 20 words with no emoji or markdown unless absolutely necessary. Plain text reply only. Here is room logs \"" + context + " \". For memory, you can output the array with a \"!search <term>\". ALWAYS respond with a JSON array of strings, like: [\"response 1\", \"response 2\"]. If you only have one response, still wrap it in an array: [\"single response\"]. To call a command, it has to be a seperate message in the array. You can use the \"!selfcall <self prompt (optional with room logs)>\" to trigger a self call again in 50 seconds. This is useful if you are performing an agentic task and need to check say the return value of a command like !tell. Focus on prompt by User.";
         
-        const prompt = "You are the AI part of a bot called @markovbot, but you are a smart ai for euphoria, a chat room system like @grok is to x.com. maker: @peterforever + vibe coded with: gemini/deepseek/mistral | comands users can use on @markovbot !help, !ping, !markov [seed], @ai [prompt], !search [phrase]. You can use \"!tell @name something\" to send a message to someone via anouther bot called @TellBot. Euphoria has many other bots, use !ping to find a list. You are in " + room + " room on euphoria. This prompt given by user @" + sender + " using the '@ai prompt' comand. Answer simply and try to answer in 20 words with no emoji or markdown unless absolutely necessary. Plain text reply only. Here is room logs \"" + context + " \". For memory, you should know that a markov chain with memory of euphoria chats will reply with: \"" + generate(text).slice(0,30) + "...\" keep in mind its just a markov chain with memory of euphoria and that you are a seperate helpful AI chatter. Focus on prompt which is the following: " + promptMatch[1].trim();
+        const prompt = promptMatch[1].trim();
         if (!prompt) return;
         
-        roomLog(room, `@ai call from @${sender}: ${text}`);
+        roomLog(room, `@${sender} prompted: ${text}`);
         aiBusy = true;
         
         try {
-            const response = await callMistralAPI(prompt);
-            
-            if (response && response.choices && response.choices[0] && response.choices[0].message) {
-                const aiResponse = response.choices[0].message.content;
-                
-                connection.send(JSON.stringify({ type: 'nick', data: { name: "markovbot(AI)" } }));
-                
-                // Send AI response to the room
-                connection.send(JSON.stringify({
+
+            if (response && response.choices && response.choices[0]?.message?.content) {
+            const aiResponse = response.choices[0].message.content.trim();
+
+                try {
+                // Parse the array
+                const replies = JSON.parse(aiResponse);
+
+                if (Array.isArray(replies)) {
+                    // Send each reply as a separate message
+                    replies.forEach((reply, index) => {
+                        // Check for !selfcall command
+                        const selfCallMatch = reply.match(/^!selfcall\s*(.*)$/i);
+
+                        if (selfCallMatch) {
+                            const delaySeconds = parseInt(selfCallMatch[1], 10) || 5; // Default: 5 seconds
+                            const selfPrompt = selfCallMatch[2].trim() || text; // Use self-prompt or original
+                            setTimeout(() => {
+                                roomLog(room, `Self-call scheduled after 50s: ${selfPrompt.substring(0, 50)}...`);
+                                handleAiPrompt(
+                                    room,
+                                    "AI self callback, // Sender is the bot itself
+                                    `@ai ${selfPrompt}`,
+                                    null,     // No parent messageId for scheduled calls
+                                    connection
+                                ).catch(e => {
+                                    roomLog(room, `Scheduled AI call failed: ${e.message}`);
+                                });
+                            }, delaySeconds * 1000); // Convert to milliseconds
+
+                        }
+                        setTimeout(() => {  // Small delay to avoid rate limits
+                            connection.send(JSON.stringify({
+                                type: 'send',
+                                data: {
+                                content: reply,
+                                parent: messageId
+                                }
+                            }));
+                        }, index * 500);  // 500ms delay between messages
+                    });
+                } else {
+                // Fallback for non-array responses
+                    connection.send(JSON.stringify({
                     type: 'send',
-                    data: {
-                        content: `${aiResponse}`,
-                        parent: messageId
-                    }
-                }));
-                
-                // Add to chat records
-                // addToChatRecords(room, "markovbot(AI)", aiResponse, 'ai-' + Date.now());
-                
+                    data: { content: aiResponse, parent: messageId }
+                    }));
+        
+                }
                 connection.send(JSON.stringify({
                     type: 'send',
                     data: {
@@ -496,7 +540,7 @@
 
                 connection.send(JSON.stringify({ type: 'nick', data: { name: BOT_NAME } }));
                 
-                roomLog(room, `🤖 AI Response: ${aiResponse.substring(0, 1000)}${aiResponse.length > 1000 ? '...' : ''}`);
+                roomLog(room, `AI: ${aiResponse.substring(0, 1000)}${aiResponse.length > 1000 ? '...' : ''}`);
                 train(aiResponse);
             } else {
                 roomLog(room, "❌ AI returned an invalid response format");
