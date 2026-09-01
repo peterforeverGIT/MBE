@@ -404,8 +404,8 @@
         const body = JSON.stringify({
             model: 'mistral-medium-latest',
             messages: [
-                {role: 'System', content: sys}
-                {role: 'User', content: prompt}
+                { role: "system", content: sys },
+                { role: "user", content: prompt }
             ],
             temperature: 0.7,
             max_tokens: 1000,
@@ -438,12 +438,12 @@
     // ---------- AI PROMPT HANDLING ----------
     async function handleAiPrompt(room, sender, text, messageId, connection) {
         if (!mistralApiKey) {
-            roomLog(room, "⚠️ AI not configured - no API key");
+            roomLog(room, "AI not configured - no API key");
             return;
         }
         
         if (aiBusy) {
-            roomLog(room, "⏳ AI is busy processing another request");
+            roomLog(room, "AI is busy processing another request");
             return;
         }
 
@@ -456,19 +456,18 @@
               .join('\n')
         : 'No context';
         
-        // Extract the prompt after @ai
-        const promptMatch = text.match(/@ai\s+(.+)/i);
-        if (!promptMatch) return;
+        
         const sys = "You are the AI chat bot part of a bot called @markovbot, but you are a smart ai for euphoria, a chat room system like @grok is to x.com. maker: @peterforever + vibe coded with: gemini/deepseek/mistral | comands users can use on @markovbot !help, !ping, !markov [seed], @ai [prompt], !search [phrase]. You can use \"!tell @name something\" to send a message to someone via anouther bot called @TellBot. Euphoria has many other bots, use !ping to find a list. You are in " + room + " room on euphoria. This prompt given by user @" + sender + " using the '@ai prompt' comand. Answer simply and try to answer in 20 words with no emoji or markdown unless absolutely necessary. Plain text reply only. Here is room logs \"" + context + " \". For memory, you can output the array with a \"!search <term>\". ALWAYS respond with a JSON array of strings, like: [\"response 1\", \"response 2\"]. If you only have one response, still wrap it in an array: [\"single response\"]. To call a command, it has to be a seperate message in the array. You can use the \"!selfcall <self prompt (optional with room logs)>\" to trigger a self call again in 50 seconds. This is useful if you are performing an agentic task and need to check say the return value of a command like !tell. Focus on prompt by User.";
         
-        const prompt = promptMatch[1].trim();
+        const prompt = text.trim();
         if (!prompt) return;
         
         roomLog(room, `@${sender} prompted: ${text}`);
         aiBusy = true;
         
         try {
-
+            const response = await callMistralAPI(sys, prompt);
+            
             if (response && response.choices && response.choices[0]?.message?.content) {
             const aiResponse = response.choices[0].message.content.trim();
 
@@ -483,8 +482,7 @@
                         const selfCallMatch = reply.match(/^!selfcall\s*(.*)$/i);
 
                         if (selfCallMatch) {
-                            const delaySeconds = parseInt(selfCallMatch[1], 10) || 5; // Default: 5 seconds
-                            const selfPrompt = selfCallMatch[2].trim() || text; // Use self-prompt or original
+                            const selfPrompt = selfCallMatch[1].trim() || text; // Use self-prompt or original
                             setTimeout(() => {
                                 roomLog(room, `Self-call scheduled after 50s: ${selfPrompt.substring(0, 50)}...`);
                                 handleAiPrompt(
@@ -496,7 +494,7 @@
                                 ).catch(e => {
                                     roomLog(room, `Scheduled AI call failed: ${e.message}`);
                                 });
-                            }, delaySeconds * 1000); // Convert to milliseconds
+                            }, 50000); // Convert to milliseconds
 
                         }
                         setTimeout(() => {  // Small delay to avoid rate limits
