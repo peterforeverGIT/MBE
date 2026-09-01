@@ -625,7 +625,7 @@
                     const aiResponse = response.choices[0].message.content.trim();
                     try {
                         const replies = JSON.parse(aiResponse);
-                        conn.send(JSON.stringify({ type: 'nick', data: { name: 'markovbot(AI)' } }));
+                        connection.send(JSON.stringify({ type: 'nick', data: { name: 'markovbot(AI)' } }));
                         if (Array.isArray(replies)) {
                             replies.forEach((reply, index) => {
                                 const selfCallMatch = reply.match(/^!selfcall\s*(.*)$/i);
@@ -676,7 +676,7 @@
             } catch(error) {
                 roomLog(room, `❌ AI Error: ${error.message}`);
             } finally {
-                conn.send(JSON.stringify({ type: 'nick', data: { name: "markovbot" } }));
+                connection.send(JSON.stringify({ type: 'nick', data: { name: "markovbot" } }));
                 aiBusy = false;
             }
         }
