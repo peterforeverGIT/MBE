@@ -4,1099 +4,1229 @@
     <meta charset="UTF-8">
     <title>MarkovBot Multi-Terminal Manager + AI</title>
     <style>
-        body { font-family: sans-serif; background: #1a1a1a; color: #dcdcdc; padding: 15px; font-size: 13px; margin: 0; }
+        body { 
+            font-family: sans-serif; 
+            background: #1a1a1a; 
+            color: #dcdcdc; 
+            padding: 15px; 
+            font-size: 13px; 
+            margin: 0; 
+        }
         .container { max-width: 1000px; margin: auto; }
         
         /* Global Log Style */
-        #globalLog { background: #000; border: 1px solid #444; height: 120px; overflow-y: scroll; padding: 8px; font-family: monospace; font-size: 11px; margin-bottom: 10px; border-radius: 4px; color:#dcdcdc }
+        #globalLog { 
+            background: #000; 
+            border: 1px solid #444; 
+            height: 120px; 
+            overflow-y: scroll; 
+            padding: 8px; 
+            font-family: monospace; 
+            font-size: 11px; 
+            margin-bottom: 10px; 
+            border-radius: 4px; 
+            color:#dcdcdc 
+        }
         
-        .controls { background: #2a2a2a; padding: 15px; border-radius: 8px; border: 1px solid #444; margin-bottom: 10px; }
+        .controls { 
+            background: #2a2a2a; 
+            padding: 15px; 
+            border-radius: 8px; 
+            border: 1px solid #444; 
+            margin-bottom: 10px; 
+        }
         
         /* Tab System */
-        .tabs { display: flex; overflow-x: auto; background: #333; border-radius: 5px 5px 0 0; border: 1px solid #444; border-bottom: none; }
-        .tab-btn { padding: 10px 20px; background: none; border: none; color: #fff; cursor: pointer; border-right: 1px solid #444; }
-        .tab-btn.active { background: #444; color: #00ff00; font-weight: bold; }
-        .tab-content { background: #000; border: 1px solid #444; height: 350px; overflow-y: scroll; padding: 10px; font-family: monospace; border-radius: 0 0 5px 5px; color: #00ff00; }
+        .tabs { 
+            display: flex; 
+            overflow-x: auto; 
+            background: #333; 
+            border-radius: 5px 5px 0 0; 
+            border: 1px solid #444; 
+            border-bottom: none; 
+        }
+        .tab-btn { 
+            padding: 10px 20px; 
+            background: none; 
+            border: none; 
+            color: #fff; 
+            cursor: pointer; 
+            border-right: 1px solid #444; 
+        }
+        .tab-btn.active { 
+            background: #444; 
+            color: #00ff00; 
+            font-weight: bold; 
+        }
+        .tab-content { 
+            background: #000; 
+            border: 1px solid #444; 
+            height: 350px; 
+            overflow-y: scroll; 
+            padding: 10px; 
+            font-family: monospace; 
+            border-radius: 0 0 5px 5px; 
+            color: #00ff00; 
+        }
         
-        input, textarea { width: 100%; background: #000; color: #00ff00; border: 1px solid #555; padding: 8px; margin: 5px 0; box-sizing: border-box; }
-        button { background: #0066cc; color: white; border: none; padding: 8px 12px; cursor: pointer; font-weight: bold; border-radius: 4px; }
-        .btn-red { background: #cc0000; margin-left: 10px; padding: 4px 8px; font-size: 10px; }
-        .maker-tag { font-size: 11px; color: #777; text-align: center; display: block; margin-top: 20px; font-style: italic; }
-        .chat-line { margin-bottom: 4px; border-bottom: 1px solid #111; }
+        input, textarea { 
+            width: 100%; 
+            background: #000; 
+            color: #00ff00; 
+            border: 1px solid #555; 
+            padding: 8px; 
+            margin: 5px 0; 
+            box-sizing: border-box; 
+        }
+        button { 
+            background: #0066cc; 
+            color: white; 
+            border: none; 
+            padding: 8px 12px; 
+            cursor: pointer; 
+            font-weight: bold; 
+            border-radius: 4px; 
+        }
+        button:disabled { 
+            background: #555; 
+            cursor: not-allowed; 
+        }
+        .btn-red { 
+            background: #cc0000; 
+            margin-left: 10px; 
+            padding: 4px 8px; 
+            font-size: 10px; 
+        }
+        .maker-tag { 
+            font-size: 11px; 
+            color: #777; 
+            text-align: center; 
+            display: block; 
+            margin-top: 20px; 
+            font-style: italic; 
+        }
+        .chat-line { 
+            margin-bottom: 4px; 
+            border-bottom: 1px solid #111; 
+        }
         
         /* AI Section Styles */
-        .ai-controls { background: #1e1e1e; padding: 12px; border-radius: 6px; border: 1px solid #333; margin-bottom: 10px; }
-        .ai-status { font-size: 11px; color: #aaa; margin-top: 5px; }
+        .ai-controls { 
+            background: #1e1e1e; 
+            padding: 12px; 
+            border-radius: 6px; 
+            border: 1px solid #333; 
+            margin-bottom: 10px; 
+        }
+        .ai-status { 
+            font-size: 11px; 
+            color: #aaa; 
+            margin-top: 5px; 
+        }
         .ai-status.connected { color: #00ff00; }
         .ai-status.disconnected { color: #ff5555; }
         
         /* Notify panel styles */
-        .notify-controls { padding: 10px; border-bottom: 1px solid #333; display:flex; gap:8px; align-items:center; }
-        .notify-list { height: 200px; overflow-y: auto; background: #0b0b0b; border-top: 1px solid #222; padding: 8px; font-family: monospace; font-size: 12px; }
-        .notify-item { padding: 6px; border-bottom: 1px solid #111; cursor: pointer; }
-        .notify-item.selected { background: rgba(0,255,0,0.06); }
-        .notify-meta { color: #999; font-size: 11px; }
+        .notify-controls { 
+            padding: 10px; 
+            border-bottom: 1px solid #333; 
+            display:flex; 
+            gap:8px; 
+            align-items:center; 
+        }
+        .notify-list { 
+            height: 200px; 
+            overflow-y: auto; 
+            background: #0b0b0b; 
+            border-top: 1px solid #222; 
+            padding: 8px; 
+            font-family: monospace; 
+            font-size: 12px; 
+        }
+        .notify-item { 
+            padding: 6px; 
+            border-bottom: 1px solid #111; 
+            cursor: pointer; 
+        }
+        .notify-item.selected { 
+            background: rgba(0,255,0,0.06); 
+        }
+        .notify-meta { 
+            color: #999; 
+            font-size: 11px; 
+        }
         .notify-reply { margin-top: 8px; }
         .small { font-size: 11px; padding: 6px; }
         .big { padding: 12px 18px; font-size: 14px; }
         
         /* AI Response Styling */
-        .ai-response { border-left: 3px solid #0066cc; padding-left: 10px; margin: 8px 0; background: rgba(0,102,204,0.05); }
-        .ai-thinking { color: #aaa; font-style: italic; }
+        .ai-response { 
+            border-left: 3px solid #0066cc; 
+            padding-left: 10px; 
+            margin: 8px 0; 
+            background: rgba(0,102,204,0.05); 
+        }
+        .ai-thinking { 
+            color: #aaa; 
+            font-style: italic; 
+        }
         
         /* Search Panel Styles */
-        .search-controls { padding: 10px; border-bottom: 1px solid #333; display:flex; gap:8px; align-items:center; }
-        .search-list { height: 200px; overflow-y: auto; background: #0b0b0b; border-top: 1px solid #222; padding: 8px; font-family: monospace; font-size: 12px; }
-        .search-item { padding: 6px; border-bottom: 1px solid #111; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
-        .search-item.selected { background: rgba(0,255,0,0.06); }
-        .search-meta { color: #999; font-size: 11px; }
+        .search-controls { 
+            padding: 10px; 
+            border-bottom: 1px solid #333; 
+            display:flex; 
+            gap:8px; 
+            align-items:center; 
+        }
+        .search-list { 
+            height: 200px; 
+            overflow-y: auto; 
+            background: #0b0b0b; 
+            border-top: 1px solid #222; 
+            padding: 8px; 
+            font-family: monospace; 
+            font-size: 12px; 
+        }
+        .search-item { 
+            padding: 6px; 
+            border-bottom: 1px solid #111; 
+            cursor: pointer; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+        }
+        .search-item.selected { 
+            background: rgba(0,255,0,0.06); 
+        }
+        .search-meta { 
+            color: #999; 
+            font-size: 11px; 
+        }
         .search-text { flex: 1; }
-        .delete-btn { background: #cc0000; color: white; border: none; padding: 2px 6px; cursor: pointer; font-size: 10px; border-radius: 3px; }
-        .search-results-info { color: #aaa; font-size: 11px; margin-bottom: 5px; }
+        .delete-btn { 
+            background: #cc0000; 
+            color: white; 
+            border: none; 
+            padding: 2px 6px; 
+            cursor: pointer; 
+            font-size: 10px; 
+            border-radius: 3px; 
+        }
+        .search-results-info { 
+            color: #aaa; 
+            font-size: 11px; 
+            margin-bottom: 5px; 
+        }
+        
+        /* Status bar for file protocol warning */
+        #fileProtocolWarning {
+            background: #ff5555;
+            color: white;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 10px;
+            text-align: center;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
-
-<div class="container">
-    <h3>🌐 Global Connection Log</h3>
-    <div id="globalLog"></div>
-
-    <!-- AI Configuration Section -->
-    <div class="ai-controls">
-        <strong>🤖 Mistral AI Configuration</strong>
-        <div style="display: flex; gap: 5px; margin-top: 8px;">
-            <input type="password" id="mistralApiKey" placeholder="Enter your Mistral API key" style="flex: 1;">
-            <button onclick="saveApiKey()">Save Key</button>
-            <button onclick="testAiConnection()">Test Connection</button>
+    <div class="container">
+        <div id="fileProtocolWarning" style="display: none;">
+            ⚠️ WARNING: This app requires a web server. Open via HTTP/HTTPS (not file://) for full functionality.
         </div>
-        <div id="aiStatus" class="ai-status">API key not configured</div>
-    </div>
+        
+        <h3>🌐 Global Connection Log</h3>
+        <div id="globalLog"></div>
 
-    <!-- Search Panel -->
-    <div class="controls">
-        <strong>🔍 Chat Search & Records</strong>
-        <div class="search-controls">
-            <input type="text" id="searchInput" placeholder="Search previous chats..." style="flex: 1;">
-            <button onclick="performSearch()">Search</button>
-            <button onclick="clearSearch()" class="btn-red">Clear</button>
-        </div>
-        <div id="searchResultsInfo" class="search-results-info"></div>
-        <div id="searchResults" class="search-list"></div>
-    </div>
-
-    <div class="controls">
-        <div style="display:flex; gap: 5px;">
-            <input type="text" id="newRoom" placeholder="Enter room name (e.g. test)">
-            <button onclick="addRoom()">Connect & Open Terminal</button>
-        </div>
-    </div>
-
-    <div class="tabs" id="tabBar">
-        <button class="tab-btn" id="btn-notify" onclick="switchTab('notify')">💬 Direct Chat</button>
-    </div>
-    <div id="terminalContainer">
-        <div class="tab-content" id="term-notify" style="display:none;">
-            <div class="notify-controls">
-                <label><input type="checkbox" id="notifyEnable"> Enable</label>
-                <label style="margin-left:8px;"><input type="checkbox" id="notifyAutoScroll"> Auto-scroll</label>
-                <input type="text" id="notifyUsername" placeholder="Reply username" style="flex:1; max-width:220px; background:#000; color:#00ff00; border:1px solid #555; padding:6px;">
-                <button class="small" onclick="saveUsername()">Save</button>
+        <!-- AI Configuration Section -->
+        <div class="ai-controls">
+            <strong>🤖 Mistral AI Configuration</strong>
+            <div style="display: flex; gap: 5px; margin-top: 8px;">
+                <input type="password" id="mistralApiKey" placeholder="Enter your Mistral API key" style="flex: 1;">
+                <button onclick="saveApiKey()">Save Key</button>
+                <button onclick="testAiConnection()">Test Connection</button>
             </div>
-            <div id="notifyList" class="notify-list"></div>
-            <div class="notify-reply">
-                <div class="notify-meta">Selected: <span id="notifySelected">(none)</span></div>
-                <textarea id="notifyReplyText" rows="3" placeholder="Write your reply here..."></textarea>
-                <div style="display:flex; gap:8px; margin-top:6px;">
-                    <button onclick="sendInlineReply()">Send Reply</button>
-                </div>
-                <div style="display:flex; gap:8px; margin-top:8px; align-items:center;">
-                    <input id="nullRoom" placeholder="room for null thread (e.g. test)" style="flex:1; max-width:300px; background:#000; color:#00ff00; border:1px solid #555; padding:6px;">
-                    <button class="big" onclick="sendToNullThread()">SEND TO NULL THREAD</button>
-                </div>
+            <div id="aiStatus" class="ai-status">API key not configured</div>
+        </div>
+
+        <!-- Search Panel -->
+        <div class="controls">
+            <strong>🔍 Chat Search & Records</strong>
+            <div class="search-controls">
+                <input type="text" id="searchInput" placeholder="Search previous chats..." style="flex: 1;">
+                <button onclick="performSearch()">Search</button>
+                <button onclick="clearSearch()" class="btn-red">Clear</button>
+            </div>
+            <div id="searchResultsInfo" class="search-results-info"></div>
+            <div id="searchResults" class="search-list"></div>
+        </div>
+
+        <div class="controls">
+            <div style="display:flex; gap: 5px;">
+                <input type="text" id="newRoom" placeholder="Enter room name (e.g. test)">
+                <button onclick="addRoom()">Connect & Open Terminal</button>
             </div>
         </div>
+
+        <div class="tabs" id="tabBar">
+            <button class="tab-btn" id="btn-notify" onclick="switchTab('notify')">💬 Direct Chat</button>
+        </div>
+        <div id="terminalContainer">
+            <div class="tab-content" id="term-notify" style="display:none;">
+                <div class="notify-controls">
+                    <label><input type="checkbox" id="notifyEnable" onchange="saveNotifyPrefs()"> Enable</label>
+                    <label style="margin-left:8px;"><input type="checkbox" id="notifyAutoScroll" onchange="saveNotifyPrefs()"> Auto-scroll</label>
+                    <input type="text" id="notifyUsername" placeholder="Reply username" style="flex:1; max-width:220px; background:#000; color:#00ff00; border:1px solid #555; padding:6px;">
+                    <button class="small" onclick="saveUsername()">Save</button>
+                </div>
+                <div id="notifyList" class="notify-list"></div>
+                <div class="notify-reply">
+                    <div class="notify-meta">Selected: <span id="notifySelected">(none)</span></div>
+                    <textarea id="notifyReplyText" rows="3" placeholder="Write your reply here..."></textarea>
+                    <div style="display:flex; gap:8px; margin-top:6px;">
+                        <button onclick="sendInlineReply()">Send Reply</button>
+                    </div>
+                    <div style="display:flex; gap:8px; margin-top:8px; align-items:center;">
+                        <input id="nullRoom" placeholder="room for null thread (e.g. test)" style="flex:1; max-width:300px; background:#000; color:#00ff00; border:1px solid #555; padding:6px;">
+                        <button class="big" onclick="sendToNullThread()">SEND TO NULL THREAD</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="controls" style="margin-top:20px;">
+            <strong>📜 Log Management (Text-Based JSON):</strong>
+            <textarea id="logsText" rows="2"></textarea>
+            <button onclick="exportLogs()">Show Current Logs</button>
+            <button onclick="importLogs()">Apply Text to Logs</button>
+        </div>
+
+        <span class="maker-tag">Maker: peterforever + gemini + mistral</span>
     </div>
 
-    <div class="controls" style="margin-top:20px;">
-        <strong>📜 Log Management (Text-Based JSON):</strong>
-        <textarea id="logsText" rows="2"></textarea>
-        <button onclick="exportLogs()">Show Current Logs</button>
-        <button onclick="importLogs()">Apply Text to Logs</button>
-    </div>
+    <script>
+        // === GLOBAL STATE ===
+        var brain = { 1: {}, 2: {}, 3: {}, 4: {} };
+        var connections = {};
+        var BOT_NAME = 'markovbot';
+        var activeTab = null;
+        var mistralApiKey = null;
+        var notifyEnabled = false;
+        var notifyAutoScroll = true;
+        var recentMessages = [];
+        var maxMessages = 200;
+        var selectedMessage = null;
+        var currentUserName = BOT_NAME;
+        var aiBusy = false;
+        var chatRecords = {};
+        var isFileProtocol = window.location.protocol === 'file:';
 
-
-    <span class="maker-tag">Maker: peterforever + gemini + mistral</span>
-</div>
-
-<script>
-    // Brain stores n-grams for n=1..4
-    var brain = { 1: {}, 2: {}, 3: {}, 4: {} };
-    var connections = {};
-    var BOT_NAME = 'markovbot';
-    var activeTab = null;
-    var mistralApiKey = null;
-
-    // Notify panel state
-    var notifyEnabled = false;
-    var notifyAutoScroll = true;
-    var recentMessages = [];
-    var maxMessages = 200;
-    var selectedMessage = null;
-    var currentUserName = BOT_NAME;
-
-    // AI State
-    var aiBusy = false;
-
-    // Chat Records - Shared across rooms
-    var chatRecords = {};
-
-    // ---------- LOCALSTORAGE PERSISTENCE ----------
-    function saveBrain() {
-        try {
-            localStorage.setItem('markov_brain', JSON.stringify(brain));
-        } catch(e) {
-            gLog("⚠️ Failed to save brain: " + e);
-        }
-    }
-
-    function loadBrain() {
-        try {
-            var data = localStorage.getItem('markov_brain');
-            if (data) {
-                brain = JSON.parse(data);
-                gLog("🧠 Brain loaded from local storage.");
+        // === INITIALIZATION ===
+        window.addEventListener('DOMContentLoaded', function() {
+            // Show warning if using file protocol
+            if (isFileProtocol) {
+                document.getElementById('fileProtocolWarning').style.display = 'block';
+                gLog("⚠️ Running in file:// mode. WebSocket and localStorage will NOT work. Use a web server!");
             }
-        } catch(e) {
-            gLog("⚠️ Failed to load brain: " + e);
-        }
-    }
 
-    function saveRooms() {
-        try {
-            var rooms = Object.keys(connections);
-            localStorage.setItem('markov_rooms', JSON.stringify(rooms));
-        } catch(e) {
-            gLog("⚠️ Failed to save rooms: " + e);
-        }
-    }
+            // Load all persisted data
+            loadBrain();
+            loadRooms();
+            loadChatRecords();
+            loadApiKey();
+            loadUsername();
+            loadNotifyPrefs();
 
-    function loadRooms() {
-        try {
-            var data = localStorage.getItem('markov_rooms');
-            if (data) {
-                var rooms = JSON.parse(data);
-                rooms.forEach(function(room) {
-                    if (!connections[room]) {
-                        addRoom(room);
+            gLog("✅ App initialized. Brain, rooms, and chat records loaded.");
+        });
+
+        // === LOCALSTORAGE PERSISTENCE ===
+        function saveBrain() {
+            if (isFileProtocol) return;
+            try {
+                localStorage.setItem('markov_brain', JSON.stringify(brain));
+                gLog("🧠 Brain saved to local storage.");
+            } catch(e) {
+                gLog("⚠️ Failed to save brain: " + e.message);
+            }
+        }
+
+        function loadBrain() {
+            if (isFileProtocol) return;
+            try {
+                var data = localStorage.getItem('markov_brain');
+                if (data) {
+                    brain = JSON.parse(data);
+                    gLog("🧠 Brain loaded from local storage.");
+                } else {
+                    gLog("🧠 No existing brain found. Starting fresh.");
+                }
+            } catch(e) {
+                gLog("⚠️ Failed to load brain: " + e.message);
+            }
+        }
+
+        function saveRooms() {
+            if (isFileProtocol) return;
+            try {
+                var rooms = Object.keys(connections);
+                localStorage.setItem('markov_rooms', JSON.stringify(rooms));
+            } catch(e) {
+                gLog("⚠️ Failed to save rooms: " + e.message);
+            }
+        }
+
+        function loadRooms() {
+            if (isFileProtocol) return;
+            try {
+                var data = localStorage.getItem('markov_rooms');
+                if (data) {
+                    var rooms = JSON.parse(data);
+                    rooms.forEach(function(room) {
+                        if (!connections[room]) {
+                            addRoom(room);
+                        }
+                    });
+                }
+            } catch(e) {
+                gLog("⚠️ Failed to load rooms: " + e.message);
+            }
+        }
+
+        // === CHAT RECORDS PERSISTENCE ===
+        function saveChatRecords() {
+            if (isFileProtocol) return;
+            try {
+                localStorage.setItem('markov_chat_records', JSON.stringify(chatRecords));
+            } catch(e) {
+                gLog("⚠️ Failed to save chat records: " + e.message);
+            }
+        }
+
+        function loadChatRecords() {
+            if (isFileProtocol) return;
+            try {
+                var data = localStorage.getItem('markov_chat_records');
+                if (data) {
+                    chatRecords = JSON.parse(data);
+                    gLog("📝 Chat records loaded from local storage.");
+                }
+            } catch(e) {
+                gLog("⚠️ Failed to load chat records: " + e.message);
+            }
+        }
+
+        function addToChatRecords(room, sender, text, messageId) {
+            if (!chatRecords[room]) {
+                chatRecords[room] = [];
+            }
+            // Avoid duplicates
+            deleteChatRecordByText(room, text);
+            chatRecords[room].unshift({
+                id: messageId || 'msg-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9),
+                sender: sender,
+                text: text,
+                timestamp: Date.now(),
+                room: room
+            });
+            saveChatRecords();
+        }
+
+        function deleteChatRecord(room, messageId) {
+            if (chatRecords[room]) {
+                chatRecords[room] = chatRecords[room].filter(function(msg) {
+                    return msg.id !== messageId;
+                });
+                saveChatRecords();
+                performSearch();
+            }
+        }
+
+        function deleteChatRecordByText(room, messageTxt) {
+            if (chatRecords[room]) {
+                chatRecords[room] = chatRecords[room].filter(function(msg) {
+                    return msg.text !== messageTxt;
+                });
+                saveChatRecords();
+                performSearch();
+            }
+        }
+
+        // === SEARCH FUNCTIONALITY ===
+        function searchChatRecords(query) {
+            var results = [];
+            var lowerQuery = query.toLowerCase();
+            for (var room in chatRecords) {
+                chatRecords[room].forEach(function(msg) {
+                    if (msg.text.toLowerCase().includes(lowerQuery)) {
+                        results.push({
+                            room: room,
+                            sender: msg.sender,
+                            text: msg.text,
+                            id: msg.id,
+                            timestamp: msg.timestamp
+                        });
                     }
                 });
             }
-        } catch(e) {
-            gLog("⚠️ Failed to load rooms: " + e);
+            results.sort(function(a, b) { return b.timestamp - a.timestamp; });
+            return results;
         }
-    }
 
-    // ---------- CHAT RECORDS PERSISTENCE ----------
-    function saveChatRecords() {
-        try {
-            localStorage.setItem('markov_chat_records', JSON.stringify(chatRecords));
-        } catch(e) {
-            gLog("⚠️ Failed to save chat records: " + e);
-        }
-    }
-
-    function loadChatRecords() {
-        try {
-            var data = localStorage.getItem('markov_chat_records');
-            if (data) {
-                chatRecords = JSON.parse(data);
-                gLog("📝 Chat records loaded from local storage.");
+        function performSearch() {
+            var query = document.getElementById('searchInput').value.trim();
+            var resultsContainer = document.getElementById('searchResults');
+            var resultsInfo = document.getElementById('searchResultsInfo');
+            if (!query) {
+                resultsContainer.innerHTML = '';
+                resultsInfo.textContent = '';
+                return;
             }
-        } catch(e) {
-            gLog("⚠️ Failed to load chat records: " + e);
-        }
-    }
-
-    // Add message to chat records
-    function addToChatRecords(room, sender, text, messageId) {
-        if (!chatRecords[room]) {
-            chatRecords[room] = [];
-        }
-        deleteChatRecordByText(room, text);
-        chatRecords[room].unshift({
-            id: messageId || 'msg-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9),
-            sender: sender,
-            text: text,
-            timestamp: Date.now(),
-            room: room
-        });
-        
-        saveChatRecords();
-    }
-
-    // Delete a chat record
-    function deleteChatRecord(room, messageId) {
-        if (chatRecords[room]) {
-            chatRecords[room] = chatRecords[room].filter(function(msg) {
-                return msg.id !== messageId;
+            var results = searchChatRecords(query);
+            resultsInfo.textContent = `Found ${results.length} results for "${query}"`;
+            if (results.length === 0) {
+                resultsContainer.innerHTML = '<div class="search-item"><span class="search-text">No results found</span></div>';
+                return;
+            }
+            resultsContainer.innerHTML = '';
+            results.forEach(function(result) {
+                var item = document.createElement('div');
+                item.className = 'search-item';
+                item.innerHTML = `
+                    <div style="display: flex; flex-direction: column;">
+                        <div class="search-meta">[&${result.room}] ${result.sender} • ${new Date(result.timestamp).toLocaleTimeString()}</div>
+                        <div class="search-text">${escapeHtml(result.text)}</div>
+                    </div>
+                    <button class="delete-btn" onclick="deleteChatRecord('${result.room}', '${result.id}'); event.stopPropagation();">Delete</button>
+                `;
+                resultsContainer.appendChild(item);
             });
-            saveChatRecords();
-            performSearch(); // Refresh search results
         }
-    }
-    
-    function deleteChatRecordByText(room, messageTxt) {
-        if (chatRecords[room]) {
-            chatRecords[room] = chatRecords[room].filter(function(msg) {
-                return msg.text !== messageTxt;
-            });
-            saveChatRecords();
-            performSearch(); // Refresh search results
-        }
-    }
 
-    // Search chat records
-    function searchChatRecords(query) {
-        var results = [];
-        var lowerQuery = query.toLowerCase();
-        
-        for (var room in chatRecords) {
-            chatRecords[room].forEach(function(msg) {
-                if (msg.text.toLowerCase().includes(lowerQuery)) {
-                    results.push({
+        function clearSearch() {
+            document.getElementById('searchInput').value = '';
+            document.getElementById('searchResults').innerHTML = '';
+            document.getElementById('searchResultsInfo').textContent = '';
+        }
+
+        // === AI KEY MANAGEMENT ===
+        function saveApiKey() {
+            if (isFileProtocol) {
+                gLog("⚠️ Cannot save API key in file:// mode.");
+                return;
+            }
+            mistralApiKey = document.getElementById('mistralApiKey').value.trim();
+            if (mistralApiKey) {
+                try {
+                    sessionStorage.setItem('mistral_api_key', mistralApiKey);
+                    updateAiStatus(true);
+                    gLog("🔑 Mistral API key saved to session storage.");
+                } catch(e) {
+                    gLog("⚠️ Failed to save API key: " + e.message);
+                }
+            } else {
+                sessionStorage.removeItem('mistral_api_key');
+                mistralApiKey = null;
+                updateAiStatus(false);
+            }
+            document.getElementById('mistralApiKey').value = '';
+        }
+
+        function loadApiKey() {
+            if (isFileProtocol) return;
+            try {
+                mistralApiKey = sessionStorage.getItem('mistral_api_key');
+                if (mistralApiKey) {
+                    updateAiStatus(true);
+                }
+            } catch(e) {
+                gLog("⚠️ Failed to load API key: " + e.message);
+            }
+        }
+
+        function updateAiStatus(connected) {
+            var statusEl = document.getElementById('aiStatus');
+            if (connected) {
+                statusEl.textContent = "🟢 Mistral AI connected (key stored in session)";
+                statusEl.className = "ai-status connected";
+            } else {
+                statusEl.textContent = "🔴 Mistral AI disconnected (no key)";
+                statusEl.className = "ai-status disconnected";
+            }
+        }
+
+        async function testAiConnection() {
+            if (!mistralApiKey) {
+                gLog("⚠️ No API key configured.");
+                return;
+            }
+            if (isFileProtocol) {
+                gLog("⚠️ Cannot test API in file:// mode.");
+                return;
+            }
+            aiBusy = true;
+            gLog("🔍 Testing Mistral AI connection...");
+            try {
+                const response = await callMistralAPI("", "Say 'test successful'");
+                if (response && response.choices && response.choices[0]) {
+                    gLog("✅ Mistral AI connection test passed!");
+                } else {
+                    gLog("❌ Mistral AI connection test failed: Invalid response format");
+                }
+            } catch(error) {
+                gLog("❌ Mistral AI connection test failed: " + error.message);
+            } finally {
+                aiBusy = false;
+            }
+        }
+
+        // === MISTRAL API CALL ===
+        async function callMistralAPI(sys, prompt) {
+            if (!mistralApiKey) {
+                throw new Error("Mistral API key not configured");
+            }
+            const url = 'https://api.mistral.ai/v1/chat/completions';
+            const headers = {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${mistralApiKey}`
+            };
+            const body = JSON.stringify({
+                model: 'mistral-medium-latest',
+                messages: [
+                    { role: "system", content: sys },
+                    { role: "user", content: prompt }
+                ],
+                temperature: 0.7,
+                max_tokens: 1000
+            });
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: headers,
+                body: body
+            });
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(`API error: ${response.status} ${response.statusText}` +
+                           (errorData.message ? ' - ' + errorData.message : ''));
+            }
+            return await response.json();
+        }
+
+        // === AI PROMPT HANDLING ===
+        async function handleAiPrompt(room, sender, text, messageId, connection) {
+            if (!mistralApiKey) {
+                roomLog(room, "AI not configured - no API key");
+                return;
+            }
+            if (aiBusy) {
+                roomLog(room, "AI is busy processing another request");
+                return;
+            }
+            const term = document.getElementById(`term-${room}`);
+            const context = term
+                ? Array.from(term.querySelectorAll('.chat-line'))
+                  .slice(-10)
+                  .map(line => line.textContent)
+                  .join('\n')
+            : 'No context';
+            const sys = "You are the AI chat bot part of a bot called @markovbot, but you are a smart ai for euphoria, a chat room system like @grok is to x.com. maker: @peterforever + vibe coded with: gemini/deepseek/mistral | commands users can use on @markovbot !help, !ping, !markov [seed], @ai [prompt], !search [phrase]. You can use \"!tell @name something\" to send a message to someone via another bot called @TellBot. Euphoria has many other bots, use !ping to find a list. You are in " + room + " room on euphoria. This prompt given by user @" + sender + " using the '@ai prompt' command. Answer simply and try to answer in 20 words with no emoji or markdown unless absolutely necessary. Plain text reply only. Here is room logs \"" + context + "\". For memory, you can output the array with a \"!search <term>\". ALWAYS respond with a JSON array of strings, like: [\"response 1\", \"response 2\"]. If you only have one response, still wrap it in an array: [\"single response\"]. To call a command, it has to be a separate message in the array. You can use the \"!selfcall <self prompt (optional with room logs)>\" to trigger a self call again in 50 seconds.";
+            const prompt = text.trim();
+            if (!prompt) return;
+            roomLog(room, `@${sender} prompted: ${text}`);
+            aiBusy = true;
+            try {
+                const response = await callMistralAPI(sys, prompt);
+                if (response && response.choices && response.choices[0]?.message?.content) {
+                    const aiResponse = response.choices[0].message.content.trim();
+                    try {
+                        const replies = JSON.parse(aiResponse);
+                        if (Array.isArray(replies)) {
+                            replies.forEach((reply, index) => {
+                                const selfCallMatch = reply.match(/^!selfcall\s*(.*)$/i);
+                                if (selfCallMatch) {
+                                    const selfPrompt = selfCallMatch[1].trim() || text;
+                                    setTimeout(() => {
+                                        roomLog(room, `Self-call scheduled after 50s: ${selfPrompt.substring(0, 50)}...`);
+                                        handleAiPrompt(room, "AI self callback", `@ai ${selfPrompt}`, null, connection)
+                                            .catch(e => roomLog(room, `Scheduled AI call failed: ${e.message}`));
+                                    }, 50000);
+                                }
+                                setTimeout(() => {
+                                    if (connection.readyState === WebSocket.OPEN) {
+                                        connection.send(JSON.stringify({
+                                            type: 'send',
+                                            data: { content: reply, parent: messageId }
+                                        }));
+                                    }
+                                }, index * 500);
+                            });
+                        } else {
+                            if (connection.readyState === WebSocket.OPEN) {
+                                connection.send(JSON.stringify({
+                                    type: 'send',
+                                    data: { content: aiResponse, parent: messageId }
+                                }));
+                            }
+                        }
+                        if (connection.readyState === WebSocket.OPEN) {
+                            connection.send(JSON.stringify({
+                                type: 'send',
+                                data: { content: `generated by ai in mistral-ai's servers`, parent: messageId }
+                            }));
+                            connection.send(JSON.stringify({ type: 'nick', data: { name: BOT_NAME } }));
+                        }
+                        roomLog(room, `AI: ${aiResponse.substring(0, 1000)}${aiResponse.length > 1000 ? '...' : ''}`);
+                        train(aiResponse);
+                    } catch(error) {
+                        roomLog(room, `❌ AI Error: ${error.message}`);
+                        if (connection.readyState === WebSocket.OPEN) {
+                            connection.send(JSON.stringify({
+                                type: 'send',
+                                data: { content: "error: " + error.message + " meanwhile, markov chain says: " + generate(text), parent: messageId }
+                            }));
+                        }
+                    }
+                }
+            } catch(error) {
+                roomLog(room, `❌ AI Error: ${error.message}`);
+            } finally {
+                aiBusy = false;
+            }
+        }
+
+        // === SEARCH COMMAND ===
+        function handleSearchCommand(room, sender, text, messageId, connection) {
+            const searchMatch = text.match(/!search\s+(.+)/i);
+            if (!searchMatch) return false;
+            const query = searchMatch[1].trim();
+            const results = searchChatRecords(query);
+            if (results.length === 0) {
+                if (connection.readyState === WebSocket.OPEN) {
+                    connection.send(JSON.stringify({
+                        type: 'send',
+                        data: { content: `No results found for "${query}"`, parent: messageId }
+                    }));
+                }
+            } else {
+                const resultText = results.slice(0, 20).map(r => 
+                    `[&${r.room}] ${r.sender}: ${r.text.substring(0, 100)}${r.text.length > 100 ? '...' : ''}`
+                ).join(' \n| ');
+                if (connection.readyState === WebSocket.OPEN) {
+                    connection.send(JSON.stringify({
+                        type: 'send',
+                        data: { content: `Search results for "${query}": \n ${resultText}${results.length > 20 ? ` (+${results.length - 20} more)` : ''}`, parent: messageId }
+                    }));
+                }
+            }
+            return true;
+        }
+
+        // === NOTIFY LOCALSTORAGE ===
+        function loadUsername() {
+            if (isFileProtocol) return;
+            try {
+                var keys = ['markov_username', 'markov_name', 'markov_nick'];
+                for (var i = 0; i < keys.length; i++) {
+                    var k = keys[i];
+                    var v = localStorage.getItem(k);
+                    if (v) {
+                        currentUserName = v;
+                        break;
+                    }
+                }
+                var explicit = localStorage.getItem('markov_username');
+                if (explicit) currentUserName = explicit;
+                document.getElementById('notifyUsername').value = currentUserName === BOT_NAME ? '' : currentUserName;
+            } catch(e) {
+                gLog('⚠️ Failed to load username: ' + e.message);
+            }
+        }
+
+        function saveUsername() {
+            if (isFileProtocol) {
+                gLog("⚠️ Cannot save username in file:// mode.");
+                return;
+            }
+            try {
+                var v = document.getElementById('notifyUsername').value.trim();
+                if (v.length === 0) {
+                    currentUserName = BOT_NAME;
+                    localStorage.removeItem('markov_username');
+                } else {
+                    currentUserName = v;
+                    localStorage.setItem('markov_username', currentUserName);
+                }
+                gLog('Saved reply username: ' + currentUserName);
+            } catch(e) {
+                gLog('⚠️ Failed to save username: ' + e.message);
+            }
+        }
+
+        function loadNotifyPrefs() {
+            if (isFileProtocol) return;
+            try {
+                var auto = localStorage.getItem('markov_notify_autoscroll');
+                if (auto !== null) {
+                    notifyAutoScroll = (auto === 'true');
+                    document.getElementById('notifyAutoScroll').checked = notifyAutoScroll;
+                }
+                var en = localStorage.getItem('markov_notify_enable');
+                if (en !== null) {
+                    notifyEnabled = (en === 'true');
+                    document.getElementById('notifyEnable').checked = notifyEnabled;
+                }
+            } catch(e) {
+                gLog('⚠️ Failed to load notify prefs: ' + e.message);
+            }
+        }
+
+        function saveNotifyPrefs() {
+            if (isFileProtocol) {
+                gLog("⚠️ Cannot save notify prefs in file:// mode.");
+                return;
+            }
+            try {
+                notifyEnabled = document.getElementById('notifyEnable').checked;
+                notifyAutoScroll = document.getElementById('notifyAutoScroll').checked;
+                localStorage.setItem('markov_notify_autoscroll', notifyAutoScroll ? 'true' : 'false');
+                localStorage.setItem('markov_notify_enable', notifyEnabled ? 'true' : 'false');
+                gLog('Saved notify preferences.');
+            } catch(e) {
+                gLog('⚠️ Failed to save notify prefs: ' + e.message);
+            }
+        }
+
+        // === LOGGING ===
+        function gLog(msg) {
+            var entry = document.createElement('div');
+            entry.textContent = '[' + new Date().toLocaleTimeString() + '] ' + msg;
+            document.getElementById('globalLog').appendChild(entry);
+            document.getElementById('globalLog').scrollTop = document.getElementById('globalLog').scrollHeight;
+        }
+
+        function roomLog(roomName, msg) {
+            var term = document.getElementById('term-' + roomName);
+            if (term) {
+                var entry = document.createElement('div');
+                entry.className = 'chat-line';
+                entry.textContent = '[' + new Date().toLocaleTimeString() + '] ' + msg;
+                term.appendChild(entry);
+                term.scrollTop = term.scrollHeight;
+            }
+        }
+
+        // === MARKOV CHAIN ===
+        function train(text) {
+            if (!text || typeof text !== 'string') return;
+            var words = text.toLowerCase().trim().split(/\s+/);
+            if (words.length === 0) return;
+            words.push("."); // End marker
+            for (var n = 1; n <= 4; n++) {
+                for (var i = 0; i <= words.length - n - 1; i++) {
+                    var key = words.slice(i, i + n).join(' ');
+                    var next = words[i + n];
+                    if (!brain[n][key]) brain[n][key] = [];
+                    brain[n][key].push(next);
+                }
+            }
+            saveBrain();
+        }
+
+        function generate(seedText) {
+            if (Object.keys(chatRecords).length === 0) {
+                loadChatRecords();
+            }
+            var tempBrain = { 1: {}, 2: {}, 3: {}, 4: {} };
+            for (var room in chatRecords) {
+                chatRecords[room].forEach(function(msg) {
+                    if (msg.text && typeof msg.text === 'string') {
+                        var text = msg.text.toLowerCase().trim();
+                        if (text.length === 0) return;
+                        var words = text.split(/\s+/);
+                        words.push(".");
+                        for (var n = 1; n <= 4; n++) {
+                            for (var i = 0; i <= words.length - n - 1; i++) {
+                                var key = words.slice(i, i + n).join(' ');
+                                var next = words[i + n];
+                                if (!tempBrain[n][key]) tempBrain[n][key] = [];
+                                tempBrain[n][key].push(next);
+                            }
+                        }
+                    }
+                });
+            }
+            var seedWords = seedText.toLowerCase().trim().split(/\s+/);
+            if (seedWords.length === 0) {
+                var allMessages = [];
+                for (var room in chatRecords) {
+                    allMessages = allMessages.concat(chatRecords[room]);
+                }
+                if (allMessages.length > 0) {
+                    var randomMsg = allMessages[Math.floor(Math.random() * allMessages.length)];
+                    seedWords = randomMsg.text.toLowerCase().trim().split(/\s+/).slice(0, 2);
+                } else {
+                    return "no messages to generate from.";
+                }
+            }
+            var result = seedWords.slice();
+            for (var i = 0; i < 50; i++) {
+                var found = false;
+                var maxN = Math.min(4, result.length);
+                for (var n = maxN; n >= 1; n--) {
+                    var key = result.slice(result.length - n).join(' ');
+                    if (tempBrain[n][key] && tempBrain[n][key].length > 0) {
+                        var options = tempBrain[n][key];
+                        var next = options[Math.floor(Math.random() * options.length)];
+                        if (next === ".") {
+                            return result.join(' ');
+                        }
+                        result.push(next);
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) break;
+            }
+            return result.join(' ');
+        }
+
+        // === ROOM TERMINAL MANAGEMENT ===
+        function switchTab(roomName) {
+            activeTab = roomName;
+            var buttons = document.getElementsByClassName('tab-btn');
+            for (var i = 0; i < buttons.length; i++) {
+                buttons[i].classList.remove('active');
+            }
+            var btn = document.getElementById('btn-' + roomName);
+            if (btn) {
+                btn.classList.add('active');
+            } else if (roomName === 'notify') {
+                document.getElementById('btn-notify').classList.add('active');
+            }
+            var contents = document.getElementsByClassName('tab-content');
+            for (var i = 0; i < contents.length; i++) {
+                contents[i].style.display = 'none';
+            }
+            var t = document.getElementById('term-' + roomName);
+            if (t) {
+                t.style.display = 'block';
+            }
+            if (roomName === 'notify') {
+                document.getElementById('term-notify').style.display = 'block';
+            }
+        }
+
+        function removeRoom(roomName) {
+            if (connections[roomName]) {
+                connections[roomName].manualClose = true;
+                connections[roomName].close();
+                delete connections[roomName];
+            }
+            var btn = document.getElementById('btn-' + roomName);
+            if (btn) btn.remove();
+            var term = document.getElementById('term-' + roomName);
+            if (term) term.remove();
+            gLog("Closed terminal for &" + roomName);
+            saveRooms();
+            var remaining = Object.keys(connections);
+            if (remaining.length > 0) {
+                switchTab(remaining[0]);
+            }
+        }
+
+        function addRoom(roomName) {
+            var r = roomName || document.getElementById('newRoom').value.replace('&', '').trim();
+            if (r && !connections[r]) {
+                var btn = document.createElement('button');
+                btn.className = 'tab-btn';
+                btn.id = 'btn-' + r;
+                btn.innerHTML = '&' + r + ' <span class="btn-red" onclick="removeRoom(\'' + r + '\'); event.stopPropagation();">X</span>';
+                btn.onclick = function() { switchTab(r); };
+                document.getElementById('tabBar').appendChild(btn);
+                var term = document.createElement('div');
+                term.className = 'tab-content';
+                term.id = 'term-' + r;
+                term.style.display = 'none';
+                document.getElementById('terminalContainer').appendChild(term);
+                connectToRoom(r);
+                switchTab(r);
+                if (!roomName) {
+                    document.getElementById('newRoom').value = "";
+                }
+                saveRooms();
+            }
+        }
+
+        // === WEBSOCKET CONNECTION ===
+        function connectToRoom(roomName) {
+            if (isFileProtocol) {
+                gLog("⚠️ Cannot connect to WebSocket in file:// mode.");
+                return;
+            }
+            var ws = new WebSocket('wss://euphoria.leet.nu/room/' + roomName + '/ws');
+            ws.manualClose = false;
+            ws.roomName = roomName;
+            ws.onopen = function() {
+                gLog("✅ Successfully connected to &" + roomName);
+                roomLog(roomName, "--- TERMINAL OPENED: BOT ONLINE ---");
+                roomLog(roomName, "Waiting for server ping...");
+            };
+            ws.onmessage = function(e) {
+                var packet;
+                try {
+                    packet = JSON.parse(e.data);
+                } catch (err) {
+                    roomLog(roomName, "⚠️ Invalid JSON: " + e.data);
+                    return;
+                }
+                if (packet.type === 'ping-event') {
+                    ws.send(JSON.stringify({ type: 'ping-reply', data: { time: packet.data.time } }));
+                    return;
+                }
+                if (packet.type === 'snapshot-event') {
+                    roomLog(roomName, "--- Room snapshot ---");
+                    ws.send(JSON.stringify({ type: 'nick', data: { name: BOT_NAME } }));
+                    roomLog(roomName, "-------------------- **MSGs** -----------------------");
+                    for (let i = 0; i < packet.data.log.length; i++) {
+                        let msg = packet.data.log[i];
+                        roomLog(roomName, ` Message #${i}: id: ${msg.id} parent: ${msg.parent || 'null'} time: ${msg.time} sender: ${msg.sender.name} content: ${msg.content} `);
+                        train(msg.content);
+                        addToChatRecords(roomName, msg.sender.name, msg.content, msg.id);
+                        addMessageToNotifyList(roomName, msg.sender.name, msg.content, msg.id);
+                    }
+                    roomLog(roomName, "-------------------- **USERS** -----------------------");
+                    for (let i = 0; i < packet.data.listing.length; i++) {
+                        let lst = packet.data.listing[i];
+                        roomLog(roomName, ` id: ${lst.id} name: ${lst.name} session id: ${lst.session_id} staff?: ${lst.is_staff} manager?: ${lst.is_manager} client adr: ${lst.client_address} real one?!?: ${lst.real_client_address} `);
+                    }
+                    return;
+                }
+                if (packet.type === 'bounce-event') {
+                    roomLog(roomName, "⚠️ Room requires authentication – use auth/login command.");
+                    return;
+                }
+                if (packet.type === 'send-reply') {
+                    addMessageToNotifyList(roomName, packet.sender.name, packet.content, packet.data.id);
+                    addToChatRecords(roomName, packet.sender.name, packet.content, packet.data.id);
+                    return;
+                }
+                if (packet.type === 'send-event') {
+                    var data = packet.data;
+                    var text = data.content;
+                    var sender = data.sender.name;
+                    try {
+                        if (sender !== BOT_NAME) {
+                            addMessageToNotifyList(roomName, data.sender.name, text, data.id);
+                            addToChatRecords(roomName, data.sender.name, text, data.id);
+                        }
+                    } catch(err) {}
+                    if (sender === BOT_NAME) return;
+                    var lowerText = text.toLowerCase();
+                    var isMentioned = (lowerText.indexOf('@' + BOT_NAME) !== -1);
+                    if (lowerText.startsWith('!search')) {
+                        if (handleSearchCommand(roomName, data.sender.name, text, data.id, ws)) {
+                            return;
+                        }
+                    }
+                    if (lowerText.includes('@ai')) {
+                        handleAiPrompt(roomName, data.sender.name, text, data.id, ws);
+                    }
+                    if (lowerText.indexOf('!markov') !== 0) {
+                        train(text);
+                        roomLog(roomName, "Learned from " + sender + ": " + text);
+                    } else {
+                        roomLog(roomName, sender + " used command: " + text);
+                    }
+                    if (lowerText.includes("!help @markovbot")) {
+                        if (ws.readyState === WebSocket.OPEN) {
+                            ws.send(JSON.stringify({ 
+                                type: 'send', 
+                                data: { 
+                                    content: "@markovbot, a **4** in one, multi functional bot. It is a: \n - markov chain bot, n-gram (1-4) with !markov <seed texts>\n - ai router to euphoria with @ai <prompt> \n - euphoria multi room logs search bot with !search <phrase> \n - euphoria frontend client to hoster with the web app https://peterforevergit.github.io/MBE/webapp/ (using requires configuration ask @peterforever for more)\n | maker: @peterforever + vibe coded with: gemini/deepseek/mistral | commands: !help, !ping, !markov, @ai [prompt], !search [phrase]", 
+                                    parent: data.id 
+                                }
+                            }));
+                        }
+                    } else if (lowerText === '!ping' || (isMentioned && lowerText.indexOf('!ping') !== -1)) {
+                        if (ws.readyState === WebSocket.OPEN) {
+                            ws.send(JSON.stringify({ 
+                                type: 'send', 
+                                data: { content: "pong! 🏓", parent: data.id }
+                            }));
+                        }
+                    } else if (lowerText.indexOf('!markov') === 0) {
+                        var seed = lowerText.replace('!markov', '').replace('@' + BOT_NAME, '').trim();
+                        var reply = generate(seed);
+                        if (ws.readyState === WebSocket.OPEN) {
+                            ws.send(JSON.stringify({ 
+                                type: 'send', 
+                                data: { content: reply, parent: data.id }
+                            }));
+                        }
+                        roomLog(roomName, "REPLIED: " + reply);
+                    }
+                }
+            };
+            ws.onclose = function() {
+                if (!ws.manualClose) {
+                    gLog("⚠️ Connection lost for &" + roomName + ". Retrying in 5s...");
+                    setTimeout(function() { connectToRoom(roomName); }, 5000);
+                }
+            };
+            ws.onerror = function(error) {
+                gLog("⚠️ WebSocket error for &" + roomName + ": " + error.message);
+            };
+            connections[roomName] = ws;
+        }
+
+        // === NOTIFY LIST MANAGEMENT ===
+        function addMessageToNotifyList(room, sender, text, id) {
+            var ts = Date.now();
+            recentMessages.unshift({room: room, sender: sender, text: text, id: id, ts: ts});
+            if (recentMessages.length > maxMessages) {
+                recentMessages.pop();
+            }
+            renderNotifyList();
+        }
+
+        function renderNotifyList(options) {
+            options = options || {};
+            var el = document.getElementById('notifyList');
+            el.innerHTML = '';
+            recentMessages.forEach(function(m, idx) {
+                var item = document.createElement('div');
+                item.className = 'notify-item' + (selectedMessage && selectedMessage.idx === idx ? ' selected' : '');
+                item.onclick = function() { selectMessage(idx); };
+                item.innerHTML = '<div><strong>&' + m.room + '</strong> <span class="notify-meta">' + m.sender + ' • ' + new Date(m.ts).toLocaleTimeString() + '</span></div><div>' + escapeHtml(m.text) + '</div>';
+                el.appendChild(item);
+            });
+            if (notifyAutoScroll && !options.noScroll) {
+                el.scrollTop = el.scrollHeight;
+            }
+        }
+
+        function selectMessage(idx) {
+            selectedMessage = Object.assign({ idx: idx }, recentMessages[idx]);
+            document.getElementById('notifySelected').textContent = '&' + selectedMessage.room + ' / ' + selectedMessage.sender;
+            document.getElementById('notifyReplyText').value = '';
+            renderNotifyList({ noScroll: true });
+        }
+
+        function escapeHtml(s) {
+            if (!s) return '';
+            return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        }
+
+        function sendInlineReply() {
+            if (!selectedMessage) {
+                alert('Select a message first from the list.');
+                return;
+            }
+            var text = document.getElementById('notifyReplyText').value.trim();
+            if (!text) {
+                alert('Write a message to send.');
+                return;
+            }
+            var room = selectedMessage.room;
+            if (connections[room] && connections[room].readyState === WebSocket.OPEN) {
+                connections[room].send(JSON.stringify({
+                    type: 'send',
+                    data: {
+                        content: text,
+                        parent: selectedMessage.id
+                    }
+                }));
+                roomLog(room, "Sent reply: " + text);
+            } else {
+                gLog("⚠️ Cannot send reply: Connection to &" + room + " is not open.");
+            }
+        }
+
+        function sendToNullThread() {
+            var text = document.getElementById('notifyReplyText').value.trim();
+            var roomName = document.getElementById('nullRoom').value.trim();
+            if (!text) {
+                alert('Write a message to send.');
+                return;
+            }
+            if (!roomName) {
+                alert('Enter a room name for the null thread.');
+                return;
+            }
+            if (!connections[roomName]) {
+                alert('Room &' + roomName + ' is not connected. Connect it first.');
+                return;
+            }
+            if (connections[roomName].readyState === WebSocket.OPEN) {
+                connections[roomName].send(JSON.stringify({
+                    type: 'send',
+                    data: {
+                        content: text,
+                        parent: null
+                    }
+                }));
+                roomLog(roomName, "Sent to null thread: " + text);
+                document.getElementById('notifyReplyText').value = '';
+            } else {
+                gLog("⚠️ Cannot send to null thread: Connection to &" + roomName + " is not open.");
+            }
+        }
+
+        function exportLogs() {
+            var logs = [];
+            for (var room in chatRecords) {
+                chatRecords[room].forEach(function(msg) {
+                    logs.push({
                         room: room,
                         sender: msg.sender,
                         text: msg.text,
-                        id: msg.id,
                         timestamp: msg.timestamp
                     });
-                }
-            });
+                });
+            }
+            document.getElementById('logsText').value = JSON.stringify(logs, null, 2);
         }
-        
-        // Sort by timestamp (newest first)
-        results.sort(function(a, b) {
-            return b.timestamp - a.timestamp;
-        });
-        
-        return results;
-    }
 
-    // Perform search
-    function performSearch() {
-        var query = document.getElementById('searchInput').value.trim();
-        var resultsContainer = document.getElementById('searchResults');
-        var resultsInfo = document.getElementById('searchResultsInfo');
-        
-        if (!query) {
-            resultsContainer.innerHTML = '';
-            resultsInfo.textContent = '';
-            return;
-        }
-        
-        var results = searchChatRecords(query);
-        
-        resultsInfo.textContent = `Found ${results.length} results for "${query}"`;
-        
-        if (results.length === 0) {
-            resultsContainer.innerHTML = '<div class="search-item"><span class="search-text">No results found</span></div>';
-            return;
-        }
-        
-        resultsContainer.innerHTML = '';
-        results.forEach(function(result) {
-            var item = document.createElement('div');
-            item.className = 'search-item';
-            item.innerHTML = `
-                <div style="display: flex; flex-direction: column;">
-                    <div class="search-meta">[&${result.room}] ${result.sender} • ${new Date(result.timestamp).toLocaleTimeString()}</div>
-                    <div class="search-text">${escapeHtml(result.text)}</div>
-                </div>
-                <button class="delete-btn" onclick="deleteChatRecord('${result.room}', '${result.id}'); event.stopPropagation();">Delete</button>
-            `;
-            resultsContainer.appendChild(item);
-        });
-    }
-
-    // Clear search
-    function clearSearch() {
-        document.getElementById('searchInput').value = '';
-        document.getElementById('searchResults').innerHTML = '';
-        document.getElementById('searchResultsInfo').textContent = '';
-    }
-
-    // ---------- AI KEY MANAGEMENT ----------
-    function saveApiKey() {
-        mistralApiKey = document.getElementById('mistralApiKey').value.trim();
-        if (mistralApiKey) {
+        function importLogs() {
+            if (isFileProtocol) {
+                gLog("⚠️ Cannot import logs in file:// mode.");
+                return;
+            }
             try {
-                sessionStorage.setItem('mistral_api_key', mistralApiKey);
-                updateAiStatus(true);
-                gLog("🔑 Mistral API key saved to session storage");
-            } catch(e) {
-                gLog("⚠️ Failed to save API key: " + e);
-            }
-        } else {
-            sessionStorage.removeItem('mistral_api_key');
-            mistralApiKey = null;
-            updateAiStatus(false);
-        }
-        document.getElementById('mistralApiKey').value = '';
-    }
-
-    function loadApiKey() {
-        try {
-            mistralApiKey = sessionStorage.getItem('mistral_api_key');
-            if (mistralApiKey) {
-                updateAiStatus(true);
-            }
-        } catch(e) {
-            gLog("⚠️ Failed to load API key: " + e);
-        }
-    }
-
-    function updateAiStatus(connected) {
-        var statusEl = document.getElementById('aiStatus');
-        if (connected) {
-            statusEl.textContent = "🟢 Mistral AI connected (key stored in session)";
-            statusEl.className = "ai-status connected";
-        } else {
-            statusEl.textContent = "🔴 Mistral AI disconnected (no key)";
-            statusEl.className = "ai-status disconnected";
-        }
-    }
-
-    async function testAiConnection() {
-        if (!mistralApiKey) {
-            gLog("⚠️ No API key configured");
-            return;
-        }
-        
-        aiBusy = true;
-        gLog("🔍 Testing Mistral AI connection...");
-        
-        try {
-            const response = await callMistralAPI("","Say 'test successful'");
-            if (response && response.choices && response.choices[0]) {
-                gLog("✅ Mistral AI connection test passed!");
-            } else {
-                gLog("❌ Mistral AI connection test failed: Invalid response format");
-            }
-        } catch(error) {
-            gLog("❌ Mistral AI connection test failed: " + error.message);
-        } finally {
-            aiBusy = false;
-        }
-    }
-
-    // ---------- MISTRAL API CALL ----------
-    async function callMistralAPI(sys, prompt) {
-        if (!mistralApiKey) {
-            throw new Error("Mistral API key not configured");
-        }
-
-        const url = 'https://api.mistral.ai/v1/chat/completions';
-        const headers = {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${mistralApiKey}`
-        };
-
-        
-        const body = JSON.stringify({
-            model: 'mistral-medium-latest',
-            messages: [
-                { role: "system", content: sys },
-                { role: "user", content: prompt }
-            ],
-            temperature: 0.7,
-            max_tokens: 1000,
-            tools: [
-                {
-                    type: "web_search",
-                    web_search: {
-                        allow: true,
-                        max_results: 3
-                    }
-                }
-            ]
-        });
-
-        const response = await fetch(url, {
-            method: 'POST',
-            headers: headers,
-            body: body
-        });
-
-        if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            throw new Error(`API error: ${response.status} ${response.statusText}` +
-                       (errorData.message ? ' - ' + errorData.message : ''));
-        }
-
-        return await response.json();
-    }
-
-    // ---------- AI PROMPT HANDLING ----------
-    async function handleAiPrompt(room, sender, text, messageId, connection) {
-        if (!mistralApiKey) {
-            roomLog(room, "AI not configured - no API key");
-            return;
-        }
-        
-        if (aiBusy) {
-            roomLog(room, "AI is busy processing another request");
-            return;
-        }
-
-        // Extract last 5 lines from the terminal
-        const term = document.getElementById(`term-${room}`);
-        const context = term
-            ? Array.from(term.querySelectorAll('.chat-line'))
-              .slice(-10)
-              .map(line => line.textContent)
-              .join('\n')
-        : 'No context';
-        
-        
-        const sys = "You are the AI chat bot part of a bot called @markovbot, but you are a smart ai for euphoria, a chat room system like @grok is to x.com. maker: @peterforever + vibe coded with: gemini/deepseek/mistral | comands users can use on @markovbot !help, !ping, !markov [seed], @ai [prompt], !search [phrase]. You can use \"!tell @name something\" to send a message to someone via anouther bot called @TellBot. Euphoria has many other bots, use !ping to find a list. You are in " + room + " room on euphoria. This prompt given by user @" + sender + " using the '@ai prompt' comand. Answer simply and try to answer in 20 words with no emoji or markdown unless absolutely necessary. Plain text reply only. Here is room logs \"" + context + " \". For memory, you can output the array with a \"!search <term>\". ALWAYS respond with a JSON array of strings, like: [\"response 1\", \"response 2\"]. If you only have one response, still wrap it in an array: [\"single response\"]. To call a command, it has to be a seperate message in the array. You can use the \"!selfcall <self prompt (optional with room logs)>\" to trigger a self call again in 50 seconds. This is useful if you are performing an agentic task and need to check say the return value of a command like !tell. Focus on prompt by User.";
-        
-        const prompt = text.trim();
-        if (!prompt) return;
-        
-        roomLog(room, `@${sender} prompted: ${text}`);
-        aiBusy = true;
-        
-        try {
-            const response = await callMistralAPI(sys, prompt);
-            
-            if (response && response.choices && response.choices[0]?.message?.content) {
-            const aiResponse = response.choices[0].message.content.trim();
-
-                try {
-                // Parse the array
-                const replies = JSON.parse(aiResponse);
-
-                if (Array.isArray(replies)) {
-                    // Send each reply as a separate message
-                    replies.forEach((reply, index) => {
-                        // Check for !selfcall command
-                        const selfCallMatch = reply.match(/^!selfcall\s*(.*)$/i);
-
-                        if (selfCallMatch) {
-                            const selfPrompt = selfCallMatch[1].trim() || text; // Use self-prompt or original
-                            setTimeout(() => {
-                                roomLog(room, `Self-call scheduled after 50s: ${selfPrompt.substring(0, 50)}...`);
-                                handleAiPrompt(
-                                    room,
-                                    "AI self callback, // Sender is the bot itself
-                                    `@ai ${selfPrompt}`,
-                                    null,     // No parent messageId for scheduled calls
-                                    connection
-                                ).catch(e => {
-                                    roomLog(room, `Scheduled AI call failed: ${e.message}`);
-                                });
-                            }, 50000); // Convert to milliseconds
-
-                        }
-                        setTimeout(() => {  // Small delay to avoid rate limits
-                            connection.send(JSON.stringify({
-                                type: 'send',
-                                data: {
-                                content: reply,
-                                parent: messageId
-                                }
-                            }));
-                        }, index * 500);  // 500ms delay between messages
-                    });
-                } else {
-                // Fallback for non-array responses
-                    connection.send(JSON.stringify({
-                    type: 'send',
-                    data: { content: aiResponse, parent: messageId }
-                    }));
-        
-                }
-                connection.send(JSON.stringify({
-                    type: 'send',
-                    data: {
-                        content: `generated by ai in mistral-ai's servers`,
-                        parent: messageId
-                    }
-                }));
-
-                connection.send(JSON.stringify({ type: 'nick', data: { name: BOT_NAME } }));
-                
-                roomLog(room, `AI: ${aiResponse.substring(0, 1000)}${aiResponse.length > 1000 ? '...' : ''}`);
-                train(aiResponse);
-            } else {
-                roomLog(room, "❌ AI returned an invalid response format");
-            }
-        } catch(error) {
-            roomLog(room, `❌ AI Error: ${error.message}`);
-            connection.send(JSON.stringify({
-                    type: 'send',
-                    data: {
-                        content: "error: " + error.message + "meanwhile, markov chain says: " + generate(text),
-                        parent: messageId
-                    }
-            }));
-        } finally {
-            aiBusy = false;
-        }
-    }
-
-    // Handle search command
-    function handleSearchCommand(room, sender, text, messageId, connection) {
-        const searchMatch = text.match(/!search\s+(.+)/i);
-        if (!searchMatch) return false;
-        
-        const query = searchMatch[1].trim();
-        const results = searchChatRecords(query);
-        
-        if (results.length === 0) {
-            connection.send(JSON.stringify({
-                type: 'send',
-                data: {
-                    content: `No results found for "${query}"`,
-                    parent: messageId
-                }
-            }));
-        } else {
-            const resultText = results.slice(0, 20).map(r => 
-                `[&${r.room}] ${r.sender}: ${r.text.substring(0, 100)}${r.text.length > 100 ? '...' : ''}`
-            ).join(' \n| ');
-            
-            connection.send(JSON.stringify({
-                type: 'send',
-                data: {
-                    content: `Search results for "${query}": \n ${resultText}${results.length > 20 ? ` (+${results.length - 20} more)` : ''}`,
-                    parent: messageId
-                }
-            }));
-        }
-        
-        return true;
-    }
-
-    // ---------- NOTIFY LOCALSTORAGE ----------
-    function loadUsername() {
-        try {
-            var keys = ['markov_username', 'markov_name', 'markov_nick'];
-            for (var i=0;i<keys.length;i++){
-                var k = keys[i];
-                var v = localStorage.getItem(k);
-                if (v) {
-                    currentUserName = v;
-                    break;
-                }
-            }
-            var explicit = localStorage.getItem('markov_username');
-            if (explicit) currentUserName = explicit;
-            document.getElementById('notifyUsername').value = currentUserName === BOT_NAME ? '' : currentUserName;
-
-            var auto = localStorage.getItem('markov_notify_autoscroll');
-            if (auto !== null) notifyAutoScroll = (auto === 'true');
-            document.getElementById('notifyAutoScroll').checked = notifyAutoScroll;
-
-            var en = localStorage.getItem('markov_notify_enable');
-            if (en !== null) notifyEnabled = (en === 'true');
-            document.getElementById('notifyEnable').checked = notifyEnabled;
-        } catch(e) {
-            gLog('⚠️ Failed to load username/notify prefs: ' + e);
-        }
-    }
-
-    function saveUsername() {
-        try {
-            var v = document.getElementById('notifyUsername').value.trim();
-            if (v.length === 0) {
-                currentUserName = BOT_NAME;
-                localStorage.removeItem('markov_username');
-            } else {
-                currentUserName = v;
-                localStorage.setItem('markov_username', currentUserName);
-            }
-            gLog('Saved reply username: ' + currentUserName);
-        } catch(e) {
-            gLog('⚠️ Failed to save username: ' + e);
-        }
-    }
-
-    function saveNotifyPrefs() {
-        try {
-            localStorage.setItem('markov_notify_autoscroll', notifyAutoScroll ? 'true' : 'false');
-            localStorage.setItem('markov_notify_enable', notifyEnabled ? 'true' : 'false');
-        } catch(e) {
-            gLog('⚠️ Failed to save notify prefs: ' + e);
-        }
-    }
-
-    function gLog(msg) {
-        var entry = document.createElement('div');
-        entry.textContent = '[' + new Date().toLocaleTimeString() + '] ' + msg;
-        document.getElementById('globalLog').appendChild(entry);
-        document.getElementById('globalLog').scrollTop = document.getElementById('globalLog').scrollHeight;
-    }
-
-    function roomLog(roomName, msg) {
-        var term = document.getElementById('term-' + roomName);
-        if (term) {
-            var entry = document.createElement('div');
-            entry.className = 'chat-line';
-            entry.innerHTML = '[' + new Date().toLocaleTimeString() + '] ' + msg;
-            term.appendChild(entry);
-            term.scrollTop = term.scrollHeight;
-        }
-    }
-
-    // ---------- N-GRAM (1-4) WITH DUMB BACKOFF ----------
-    function train(text) {
-        console.log("depricated trai method was called");
-    }
-
-    function generate(seedText) {
-        // Load chat records if not already loaded
-        if (Object.keys(chatRecords).length === 0) {
-            loadChatRecords();
-        }
-
-        // Build a temporary brain from ALL chat records
-        var tempBrain = { 1: {}, 2: {}, 3: {}, 4: {} };
-
-        // Flatten all messages into one text corpus
-        for (var room in chatRecords) {
-            chatRecords[room].forEach(function(msg) {
-                if (msg.text && typeof msg.text === 'string') {
-                    var text = msg.text.toLowerCase().trim();
-                    if (text.length === 0) return;
-
-                    // Train the temporary brain on this message
-                    var words = text.split(/\s+/);
-                    words.push("."); // End marker
-    
-                    for (var n = 1; n <= 4; n++) {
-                        for (var i = 0; i <= words.length - n - 1; i++) {
-                            var key = words.slice(i, i + n).join(' ');
-                            var next = words[i + n];
-                            if (!tempBrain[n][key]) tempBrain[n][key] = [];
-                            tempBrain[n][key].push(next);
-                        }
-                    }
-                }
-            });
-        }
-
-        // Generate from the seed
-        var seedWords = seedText.toLowerCase().trim().split(/\s+/);
-        if (seedWords.length === 0) {
-            // If no seed, pick a random message from records
-            var allMessages = [];
-            for (var room in chatRecords) {
-                allMessages = allMessages.concat(chatRecords[room]);
-            }
-            if (allMessages.length > 0) {
-                var randomMsg = allMessages[Math.floor(Math.random() * allMessages.length)];
-                seedWords = randomMsg.text.toLowerCase().trim().split(/\s+/).slice(0, 2);
-            } else {
-                return "no messages to generate from.";
-            }
-        }
-
-        var result = seedWords.slice();
-        for (var i = 0; i < 50; i++) {
-            var found = false;
-            var maxN = Math.min(4, result.length);
-
-            // Try n-grams from largest to smallest (4 → 1)
-            for (var n = maxN; n >= 1; n--) {
-                var key = result.slice(result.length - n).join(' ');
-                if (tempBrain[n][key] && tempBrain[n][key].length > 0) {
-                    var options = tempBrain[n][key];
-                    var next = options[Math.floor(Math.random() * options.length)];
-                    if (next === ".") {
-                        return result.join(' ');
-                    }
-                    result.push(next);
-                    found = true;
-                    break;
-                }
-            }
-            if (!found) break;
-        }
-        return result.join(' ');
-    }
-
-    // ---------- ROOM TERMINAL MANAGEMENT ----------
-    function switchTab(roomName) {
-        activeTab = roomName;
-        var buttons = document.getElementsByClassName('tab-btn');
-        for (var i=0; i<buttons.length; i++) buttons[i].classList.remove('active');
-        var btn = document.getElementById('btn-' + roomName);
-        if (btn) btn.classList.add('active');
-        else if (roomName === 'notify') document.getElementById('btn-notify').classList.add('active');
-
-        var contents = document.getElementsByClassName('tab-content');
-        for (var i=0; i<contents.length; i++) contents[i].style.display = 'none';
-        var t = document.getElementById('term-' + roomName);
-        if (t) t.style.display = 'block';
-        if (roomName === 'notify') document.getElementById('term-notify').style.display = 'block';
-    }
-
-    function removeRoom(roomName) {
-        if (connections[roomName]) {
-            connections[roomName].manualClose = true;
-            connections[roomName].close();
-            delete connections[roomName];
-        }
-        var btn = document.getElementById('btn-' + roomName);
-        if (btn) btn.remove();
-        var term = document.getElementById('term-' + roomName);
-        if (term) term.remove();
-        gLog("Closed terminal for &" + roomName);
-        saveRooms();
-
-        var remaining = Object.keys(connections);
-        if (remaining.length > 0) switchTab(remaining[0]);
-    }
-
-    function addRoom(roomName) {
-        var r = roomName || document.getElementById('newRoom').value.replace('&', '').trim();
-        if (r && !connections[r]) {
-            var btn = document.createElement('button');
-            btn.className = 'tab-btn';
-            btn.id = 'btn-' + r;
-            btn.innerHTML = '&' + r + ' <span class="btn-red" onclick="removeRoom(\''+r+'\'); event.stopPropagation();">X</span>';
-            btn.onclick = function() { switchTab(r); };
-            document.getElementById('tabBar').appendChild(btn);
-
-            var term = document.createElement('div');
-            term.className = 'tab-content';
-            term.id = 'term-' + r;
-            term.style.display = 'none';
-            document.getElementById('terminalContainer').appendChild(term);
-
-            connectToRoom(r);
-            switchTab(r);
-            if (!roomName) document.getElementById('newRoom').value = "";
-            saveRooms();
-        }
-    }
-
-    var firstCon = true;
-    // ---------- WEBSOCKET CONNECTION ----------
-    function connectToRoom(roomName) {
-        var ws = new WebSocket('wss://euphoria.leet.nu/room/' + roomName + '/ws');
-        ws.manualClose = false;
-        var ready = false;
-
-        ws.onopen = function() {
-            gLog("Successfully connected to &" + roomName);
-            roomLog(roomName, "--- TERMINAL OPENED: BOT ONLINE ---");
-            
-            // Initial Handshake: Wait for ping-event
-            roomLog(roomName, "Waiting for server ping...");
-        };
-
-        ws.onmessage = function(e) {
-            var packet = JSON.parse(e.data);
-            
-            // Handle Initial Handshake
-            if (packet.type === 'ping-event') {
-                //roomLog(roomName, "Received ping-event, replying...");
-                ws.send(JSON.stringify({ 
-                    type: 'ping-reply', 
-                    data: { time: packet.data.time } 
-                }));
-                return;
-            }
-
-            if (packet.type === 'snapshot-event') {
-                ready = true;
-                
-                roomLog(roomName, "---Room snapshot---");
-                ws.send(JSON.stringify({ type: 'nick', data: { name: BOT_NAME } }));
-                
-                roomLog(roomName, "-------------------- **MSGs** -----------------------")
-                for (let i = 0; i < packet.data.log.length; i++) {
-                    let msg = packet.data.log[i];
-                    roomLog(roomName, `
-                Message #${i}:
-                id: ${msg.id}
-                parent: ${msg.parent || 'null'}
-                time: ${msg.time}
-                sender: ${msg.sender.name}
-                content: ${msg.content}
-                    `);
-                    train(msg.content);
-                    addToChatRecords(roomName, msg.sender.name, msg.content, msg.id);
-                    addMessageToNotifyList(roomName, msg.sender.name, msg.content, msg.id)
-                }
-                roomLog(roomName, "-------------------- **USERS** -----------------------")
-                for (let i = 0; i < packet.data.log.listing.length; i++) {
-                    let lst = packet.data.listing[i];
-                    roomLog(roomName, `
-                id: ${lst.id}
-                name: ${lst.name}
-                session id: ${lst.session_id}
-                staff?: ${lst.is_staff}
-                manager?: ${lst.is_manager}
-                client adr: ${lst.client_address}
-                real one?!?: ${lst.real_client_address}
-                    `);
-                }
-                
-                firstCon = false;
-                return;
-            }
-
-            if (packet.type === 'bounce-event') {
-                roomLog(roomName, "⚠️ Room requires authentication – use auth/login command.");
-                return;
-            }
-
-            if (packet.type === 'send-reply') {
-                addMessageToNotifyList(roomName, packet.sender.name, packet.content, packet.data.id);
-                // Add to chat records
-                addToChatRecords(roomName, packet.sender.name, packet.content, packet.data.id);
-                return;
-            }
-
-            if (packet.type === 'send-event') {
-                var data = packet.data;
-                var text = data.content;
-                var sender = data.sender.name;
-                try {
-                    if (sender !== BOT_NAME) {
-                        addMessageToNotifyList(roomName, data.sender.name, text, data.id);
-                        // Add to chat records
-                        addToChatRecords(roomName, data.sender.name, text, data.id);
-                    }
-                } catch(err) { /* non-fatal */ }
-
-                if (sender === BOT_NAME) return;
-
-                var lowerText = text.toLowerCase();
-                var isMentioned = (lowerText.indexOf('@' + BOT_NAME) !== -1);
-
-                // Check for !search command
-                if (lowerText.startsWith('!search')) {
-                    if (handleSearchCommand(roomName, data.sender.name, text, data.id, ws)) {
-                        return;
-                    }
-                }
-
-                // Check for @ai command
-                if (lowerText.includes('@ai')) {
-                    handleAiPrompt(roomName, data.sender.name, text, data.id, ws);
-                }
-
-                // Train on every message except !markov commands
-                if (lowerText.indexOf('!markov') !== 0) {
-                    train(text);
-                    roomLog(roomName, "Learned from " + sender + ": " + text);
-                } else {
-                    roomLog(roomName, sender + " used command: " + text);
-                }
-
-                if (!ready) {
-                    roomLog(roomName, "⏳ Not ready yet – waiting for snapshot.");
+                var text = document.getElementById('logsText').value.trim();
+                if (!text) {
+                    alert('No logs to import.');
                     return;
                 }
-
-                // Bot responses
-                if (lowerText.includes("!help @markovbot")) {
-                    ws.send(JSON.stringify({ type: 'send', data: { content: "@markovbot, a **4** in one, multi functionional bot. It is a: \n - markov chain bot, n-gram (1-4) with !markov <seed texts>\n - ai router to euphoria with @ai <prompt> \n - euphoria multi room logs search bot with !search <phrase> \n - euphoria frontend client to hoster with the web app https://peterforevergit.github.io/MBE/webapp/ (using requires configuration ask @peterforever for more)\n | maker: @peterforever + vibe coded with: gemini/deepseek/mistral | commands: !help, !ping, !markov, @ai [prompt], !search [phrase]", parent: data.id }}));
+                var logs = JSON.parse(text);
+                if (!Array.isArray(logs)) {
+                    alert('Invalid logs format. Expected an array.');
+                    return;
                 }
-                else if (lowerText === '!ping' || (isMentioned && lowerText.indexOf('!ping') !== -1)) {
-                    ws.send(JSON.stringify({ type: 'send', data: { content: "pong! 🏓", parent: data.id }}));
-                }
-                else if (lowerText.indexOf('!markov') === 0) {
-                    var seed = lowerText.replace('!markov', '').replace('@' + BOT_NAME, '').trim();
-                    var reply = generate(seed);
-                    ws.send(JSON.stringify({ type: 'send', data: { content: reply, parent: data.id }}));
-                    roomLog(roomName, "REPLIED: " + reply);
-                }
-            }
-        };
-
-        ws.onclose = function() {
-            if (!ws.manualClose) {
-                gLog("Connection lost for &" + roomName + ". Retrying in 5s...");
-                setTimeout(function() { connectToRoom(roomName); }, 5000);
-            }
-        };
-
-        connections[roomName] = ws;
-    }
-
-    // ---------- NOTIFY LIST MANAGEMENT ----------
-    function addMessageToNotifyList(room, sender, text, id) {
-        var ts = Date.now();
-        recentMessages.unshift({room: room, sender: sender, text: text, id: id, ts: ts});
-        if (recentMessages.length > maxMessages) recentMessages.pop();
-        renderNotifyList();
-    }
-
-    function renderNotifyList(options) {
-        options = options || {};
-        var el = document.getElementById('notifyList');
-        el.innerHTML = '';
-        recentMessages.forEach(function(m, idx) {
-            var item = document.createElement('div');
-            item.className = 'notify-item' + (selectedMessage && selectedMessage.idx === idx ? ' selected' : '');
-            item.onclick = function() { selectMessage(idx); };
-            item.innerHTML = '<div><strong>&' + m.room + '</strong> <span class="notify-meta">' + m.sender + ' • ' + new Date(m.ts).toLocaleTimeString() + '</span></div><div>' + escapeHtml(m.text) + '</div>';
-            el.appendChild(item);
-        });
-        if (notifyAutoScroll && !options.noScroll) el.scrollTop = el.scrollHeight;
-    }
-
-    function selectMessage(idx) {
-        selectedMessage = Object.assign({ idx: idx }, recentMessages[idx]);
-        document.getElementById('notifySelected').textContent = '&' + selectedMessage.room + ' / ' + selectedMessage.sender;
-        document.getElementById('notifyReplyText').value = '';
-        renderNotifyList({ noScroll: true });
-    }
-
-    function clearNotifyList() {
-        recentMessages = [];
-        selectedMessage = null;
-        document.getElementById('notifySelected').textContent = '(none)';
-        renderNotifyList();
-    }
-
-    function escapeHtml(s) {
-        if (!s) return '';
-        return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-    }
-
-    function sendInlineReply() {
-        if (!selectedMessage) { alert('Select a message first from the list.'); return; }
-        var text = document.getElementById('notifyReplyText').value.trim();
-        if (!text) { alert('Write a message to send.'); return; }
-        var room = selectedMessage.room;
-        var conn = connections[room];
-        if (!conn || conn.readyState !== WebSocket.OPEN) { alert('Connection for &' + room + ' is not open.'); return; }
-
-        var usr = document.getElementById('notifyUsername').value.trim();
-        if (!usr) usr = BOT_NAME;
-
-        try {
-            if (usr !== BOT_NAME) conn.send(JSON.stringify({ type: 'nick', data: { name: usr } }));
-            conn.send(JSON.stringify({ type: 'send', data: { content: text, parent: selectedMessage.id }}));
-            if (usr !== BOT_NAME) conn.send(JSON.stringify({ type: 'nick', data: { name: BOT_NAME } }));
-            gLog('Sent inline reply to &' + room + ' as ' + usr + ': ' + text);
-
-            recentMessages.unshift({ room: room, sender: usr, text: text, id: 'local-' + Date.now(), ts: Date.now() });
-            if (recentMessages.length > maxMessages) recentMessages.pop();
-            
-            document.getElementById('notifyReplyText').value = '';
-            renderNotifyList();
-        } catch(e) {
-            gLog('⚠️ Failed to send inline reply: ' + e);
-        }
-    }
-    
-    function sendToNullThread() {
-        var room = document.getElementById('nullRoom').value.replace('&','').trim();
-        if (!room) { alert('Enter a room to send to.'); return; }
-        var text = document.getElementById('notifyReplyText').value.trim();
-        if (!text) { alert('Write a message to send.'); return; }
-        var conn = connections[room];
-        if (!conn || conn.readyState !== WebSocket.OPEN) { alert('Connection for &' + room + ' is not open.'); return; }
-
-        var usr = document.getElementById('notifyUsername').value.trim();
-        if (!usr) usr = BOT_NAME;
-
-        try {
-            if (usr !== BOT_NAME) conn.send(JSON.stringify({ type: 'nick', data: { name: usr } }));
-            conn.send(JSON.stringify({ type: 'send', data: { content: text }}));
-            if (usr !== BOT_NAME) conn.send(JSON.stringify({ type: 'nick', data: { name: BOT_NAME } }));
-            gLog('Sent null-thread message to &' + room + ' as ' + usr + ': ' + text);
-
-            recentMessages.unshift({ room: room, sender: usr, text: text, id: 'local-' + Date.now(), ts: Date.now() });
-            if (recentMessages.length > maxMessages) recentMessages.pop();
-            
-            document.getElementById('notifyReplyText').value = '';
-            renderNotifyList();
-        } catch(e) {
-            gLog('⚠️ Failed to send null-thread message: ' + e);
-        }
-    }
-
-    // ---------- BRAIN MANAGEMENT ----------
-    function exportBrain() {
-        document.getElementById('brainText').value = JSON.stringify(brain);
-    }
-
-    function importBrain() {
-        try {
-            brain = JSON.parse(document.getElementById('brainText').value);
-            saveBrain();
-            gLog("🧠 Brain updated and saved to localStorage.");
-        } catch(e) {
-            alert("Invalid JSON!");
-        }
-    }
-
-    function exportLogs() {
-        const logs = localStorage.getItem('markov_chat_records');
-        const logsText = document.getElementById('logsText');
-    
-        if (logs) {
-            logsText.value = JSON.stringify(JSON.parse(logs), null, 2);
-        } else {
-            logsText.value = "No logs found in localStorage";
-        }
-    }
-
-    function importLogs() {
-        const logsText = document.getElementById('logsText');
-    
-        try {
-            const parsed = JSON.parse(logsText.value);
-            localStorage.setItem('markov_chat_records', JSON.stringify(parsed));
-            alert('Logs imported successfully!');
-        } catch (error) {
-            alert('Error: Invalid JSON - ' + error.message);
-        }
-    }
-
-
-    // ---------- INITIALIZATION ----------
-    loadBrain();
-    loadChatRecords();
-    loadUsername();
-    loadApiKey();
-
-    document.addEventListener('DOMContentLoaded', function() {
-        var en = document.getElementById('notifyEnable');
-        var auto = document.getElementById('notifyAutoScroll');
-        en.checked = notifyEnabled;
-        auto.checked = notifyAutoScroll;
-        en.onchange = function() { notifyEnabled = en.checked; saveNotifyPrefs(); };
-        auto.onchange = function() { notifyAutoScroll = auto.checked; saveNotifyPrefs(); };
-        document.getElementById('notifyUsername').onchange = function() { /* lazy */ };
-        
-        // Search input event
-        document.getElementById('searchInput').addEventListener('keyup', function(e) {
-            if (e.key === 'Enter') {
+                chatRecords = {};
+                logs.forEach(function(log) {
+                    if (log.room && log.sender && log.text) {
+                        if (!chatRecords[log.room]) {
+                            chatRecords[log.room] = [];
+                        }
+                        chatRecords[log.room].push({
+                            id: 'imported-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9),
+                            sender: log.sender,
+                            text: log.text,
+                            timestamp: log.timestamp || Date.now(),
+                            room: log.room
+                        });
+                    }
+                });
+                saveChatRecords();
+                gLog('✅ Imported ' + logs.length + ' log entries.');
                 performSearch();
+            } catch(e) {
+                alert('Failed to import logs: ' + e.message);
             }
-        });
-    });
-
-    var savedRooms = localStorage.getItem('markov_rooms');
-    if (savedRooms) {
-        loadRooms();
-    }
-
-    if (Object.keys(connections).length === 0) {
-        // Auto-connect to a default room if none exist
-        // You can change this or remove it
-    }
-
-    
-</script>
+        }
+    </script>
 </body>
 </html>
