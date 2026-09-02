@@ -681,8 +681,9 @@ Remember to *always* reply using JSON arrays.
                         if (Array.isArray(replies)) {
                             replies.forEach((reply, index) => {
                                 const selfCallMatch = reply.match(/^!selfcall\s*(.*)$/i);
-                                const selfPrompt = + selfCallMatch[1].trim() || text;
                                 if (selfCallMatch) {
+                                    const selfPrompt = + selfCallMatch[1].trim() || text;
+                                
                                     setTimeout(() => {
                                         roomLog(room, `Self-call scheduled after 50s: ${selfPrompt.substring(0, 50)}...`);
                                         handleAiPrompt(room, "AI self callback", `@ai ${selfPrompt}`, messageId , connection)
