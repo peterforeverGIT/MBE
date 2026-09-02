@@ -671,9 +671,11 @@
                             }));
                             connection.send(JSON.stringify({
                                 type: 'send',
-                                data: { content: "Ai said:" + aiResponse, parent: messageId }
+                                data: { content: "Ai Response (unformated):" + aiResponse, parent: messageId }
                             }));
                         }
+                        roomLog(room, `AI Response (unformated): ${aiResponse}`);
+                        
                     }
                 }
             } catch(error) {
