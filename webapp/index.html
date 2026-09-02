@@ -663,17 +663,21 @@
                         roomLog(room, `AI: ${aiResponse.substring(0, 1000)}${aiResponse.length > 1000 ? '...' : ''}`);
                         train(aiResponse);
                     } catch(error) {
-                        roomLog(room, `❌ AI Error: ${error.message}`);
+                        roomLog(room, `AI Error: ${error.message}`);
                         if (connection.readyState === WebSocket.OPEN) {
                             connection.send(JSON.stringify({
                                 type: 'send',
-                                data: { content: "error: " + error.message + " meanwhile, markov chain says: " + generate(text), parent: messageId }
+                                data: { content: "Error?: " + error.message + " meanwhile, markov chain says: " + generate(text), parent: messageId }
+                            }));
+                            connection.send(JSON.stringify({
+                                type: 'send',
+                                data: { content: "Ai said:" + aiResponse, parent: messageId }
                             }));
                         }
                     }
                 }
             } catch(error) {
-                roomLog(room, `❌ AI Error: ${error.message}`);
+                roomLog(room, `AI Error: ${error.message}`);
             } finally {
                 connection.send(JSON.stringify({ type: 'nick', data: { name: "markovbot" } }));
                 aiBusy = false;
