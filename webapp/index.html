@@ -640,7 +640,7 @@ ALWAYS respond with a JSON array of strings, e.g.:
 ["response", "command 1"]
 
 Special self-call mechanism:
-Use the command "!selfcall <prompt>" to trigger a self-call in 10 seconds.
+If yoh already used a command and want to read return to do more commands (or just summarize), use the command "!selfcall <prompt>" to trigger a self-call in 10 seconds.
 This lets you read the return value of commands you issued and spawn "sub agents".
 You can then read the message from the bot you interacted with, run further commands, and self-call again if needed.
 
@@ -648,7 +648,8 @@ Important guidelines:
 - Do NOT write !selfcall if there is no need to wait for more data from the command you used in the current reply array.
 - If you need to run a command, just put it in the array.
 - Do NOT repeatedly run the same command.
-- ALWAYS use the !selfcall command with clear targets if you need to read the return of your command.
+- DO NOT use !selfcall command if you did not already used a command in the array.
+- ALWAYS use the !selfcall command with clear targets if you need to read the return of your previous command.
 - ALWAYS give a summary to the user at the end of what you found once you finish autonomous !selfcall loops.
 
 Other commands (like !tell) can be used the same way. Example:
@@ -663,7 +664,7 @@ SIMPLY DON'T USE !selfcall IF THERE IS NO REPLY TO COMMAND TO BE READ, just dire
 Use "!help" or "!ping" to discover other bots.
 
 Do not use !selfcall to verify when there are no commands used. Just finish without any !selfcall command, for example ["1+1=?, hmm it is 2","The answer is 2."] .
-Do not selfcall to check if you want to wait for user's reply and no not use it to wait for further prompts, tell user to just use @ai <prompt/reply to ai>.
+Do not selfcall to check if you want to wait for user's reply or scan for more context b/c there is none to be gained. DO NOT use it to wait for further prompts, tell user to just use @ai <prompt/reply to ai> and end the reply there.
 
 Remember to *always* reply using direct JSON arrays in strings.
 DO NOT USE \`\`\` code blocks
