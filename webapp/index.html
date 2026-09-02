@@ -662,6 +662,9 @@ SIMPLY DON'T USE !selfcall IF THERE IS NO REPLY TO COMMAND TO BE READ, just dire
 
 Use "!help" or "!ping" to discover other bots.
 
+Do not use !selfcall to verify when there are no commands used. Just finish without any !selfcall command, for example ["1+1=?, hmm it is 2","The answer is 2."] .
+Do not selfcall to check if you want to wait for user's reply and no not use it to wait for further prompts, tell user to just use @ai <prompt/reply to ai>.
+
 Remember to *always* reply using JSON arrays.
 `;
             const prompt = text.trim();
