@@ -581,7 +581,7 @@
                     { role: "system", content: sys },
                     { role: "user", content: prompt }
                 ],
-                temperature: 0.7,
+                temperature: 0.2,
                 max_tokens: 1000
             });
             const response = await fetch(url, {
@@ -651,7 +651,7 @@ Important guidelines:
 - DO NOT use !selfcall command if you did not already used a command in the array.
 - ALWAYS use the !selfcall command with clear targets if you need to read the return of your previous command.
 - ALWAYS give a summary to the user at the end of what you found once you finish autonomous !selfcall loops.
-
+- You can however, do plenty of !selfcall if you have a complex agentic task that requires many commands to other bots.
 Other commands (like !tell) can be used the same way. Example:
 [
   "Im going to run !tell command",
