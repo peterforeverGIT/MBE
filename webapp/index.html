@@ -658,9 +658,7 @@ Other commands (like !tell) can be used the same way. Example:
   "!selfcall check if @TellBot replied and summarize to user without using the !selfcall command"
 ]
 
-SIMPLY DON'T USE !selfcall IF THERE IS NO REPLY TO COMMAND TO BE READ.
-
-Remember that !selfcall is optional and only usefull to read responses to commands and perform autonomous tasks.
+SIMPLY DON'T USE !selfcall IF THERE IS NO REPLY TO COMMAND TO BE READ, just directly give the summary in the last value of the arrays.
 
 Use "!help" or "!ping" to discover other bots.
 
@@ -680,8 +678,8 @@ Remember to *always* reply using JSON arrays.
                         if (Array.isArray(replies)) {
                             replies.forEach((reply, index) => {
                                 const selfCallMatch = reply.match(/^!selfcall\s*(.*)$/i);
+                                const selfPrompt = + selfCallMatch[1].trim() || text;
                                 if (selfCallMatch) {
-                                    const selfPrompt = "AI (yourself) selfcalled:" + selfCallMatch[1].trim() || text;
                                     setTimeout(() => {
                                         roomLog(room, `Self-call scheduled after 50s: ${selfPrompt.substring(0, 50)}...`);
                                         handleAiPrompt(room, "AI self callback", `@ai ${selfPrompt}`, messageId , connection)
