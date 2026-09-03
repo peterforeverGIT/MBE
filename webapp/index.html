@@ -762,12 +762,12 @@
         async function handleAiPrompt(room, sender, text, messageId, connection) {
             const term = document.getElementById(`term-${room}`);
             const context = term ? Array.from(term.querySelectorAll('.chat-line'))
-                .slice(-30)
+                .slice(-4)
                 .map(line => line.textContent)
                 .join('\n') : 'No context';
             
             const sys = `
-You are the AI chatbot @ai for Euphoria chat room: &${room}.
+You are the AI chatbot @ai for Euphoria chat room: &${room}. (child bot of @markovbot
 
 You may use other commands yourself like "!tell @name something" to send a message via @TellBot.
 @${sender} is the user.
@@ -781,12 +781,12 @@ Special self-call mechanism: If you already used a command and want to read retu
 Do not run the same command more than once.
 
 Example:
-[ "Im going to run !tell command", "!tell @markovbot this message gets relayed to me!", "!selfcall check if @TellBot replied and summarize to user without using the !selfcall command" ]
+[ "Im going to run !tell command", "!tell @markovbot this message gets relayed to me!", "!selfcall check if @TellBot replied and end without using the !selfcall command" ]
 
 SIMPLY DON'T USE !selfcall IF THERE IS NO REPLY TO COMMAND TO BE READ, just directly give the summary in the last value of the arrays.
 Do not use !selfcall to verify when there are no commands used, just terminate without saying !selfcall.
 Finish without any !selfcall command, for example ["1+1=?, hmm it is 2","The answer is 2."]
-Remember to *always* reply using direct pure JSON array of strings.
+Remember to *always* reply using direct pure JSON array of strings without the \`\`\` code blocks.
 Detect if anouther bot is automatically triggering you and return nothing in that case.
 `;
             const prompt = text.trim();
@@ -801,7 +801,7 @@ Detect if anouther bot is automatically triggering you and return nothing in tha
                     try {
                         const replies = JSON.parse(aiResponse);
                         if (connection.readyState === WebSocket.OPEN) {
-                            connection.send(JSON.stringify({ type: 'nick', data: { name: 'markovbot(AI)' } }));
+                            connection.send(JSON.stringify({ type: 'nick', data: { name: 'AI(markovbot)' } }));
                         }
                         if (Array.isArray(replies)) {
                             replies.forEach((reply) => {
@@ -824,7 +824,7 @@ Detect if anouther bot is automatically triggering you and return nothing in tha
                             }
                         }
                         if (connection.readyState === WebSocket.OPEN) {
-                            connection.send(JSON.stringify({ type: 'send', data: { content: '- generated locally by AI', parent: messageId } }));
+                            connection.send(JSON.stringify({ type: 'send', data: { content: '- generated locally', parent: messageId } }));
                             connection.send(JSON.stringify({ type: 'nick', data: { name: BOT_NAME } }));
                         }
                         roomLog(room, `AI: ${aiResponse.substring(0, 1000)}${aiResponse.length > 1000 ? '...' : ''}`);
