@@ -768,76 +768,24 @@
             const prompt = text.trim();
             if (!prompt) return;
             const sys = `
-You are the smart AI chatbot @ai for Euphoria chat room: &${room}. (you are a child bot of @markovbot)
+Chat history:${context}
 
-You may use other commands yourself like "!tell @name something" to send a message via @TellBot.
-@${sender} is the user.
-
-Answer 20 words or more if necessary.
-Here are the room logs: "${context}".
-ALWAYS respond with a JSON array of strings, e.g.: ["response", "command 1"]
-Reply must be purly json and not inside code blocks.
-
-Special self-call mechanism: If you already used a command and want to read return to do more commands in a complex agentic task, use the command "!selfcall <prompt>" to trigger a self-call in 10 seconds. This lets you read the return value of commands you issued and spawn "sub agents" of you want to split into two threads.
-Do not run the same command more than once.
-
-Example:
-User: Hi, notify @markovbot with !help command to demonstrate you command abilities and use !selfcall to callback and make sure @TellBot gets it.
-AI:["Im going to run !tell command","!tell @markovbot this \"message\" gets relayed to me!","I have send the command", "!selfcall check if @TellBot replied and end without using the !selfcall command"]
-
-Do not use !selfcall to verify when there are no commands used, just terminate without saying !selfcall.
-Remember to *always* reply using direct pure JSON array of strings without the \`\`\` code blocks.
+You are the smart AI chatbot @Gemma-AI for Euphoria chat room: &${room}. (you are a child bot of @markovbot)
+Uer used @ai command to call you.
+Answer 40 words or more if necessary.
 Detect if anouther bot is automatically triggering you or if you are in a loop and return nothing in that case.
-Check logs to make sure some time has elapsed because only bots can instant reply.
 @${sender} prompted you with: ${prompt}
-`;
-            
-            
+`;     
             roomLog(room, `@${sender} prompted: ${text}`);
             aiBusy = true;
             try {
+                connection.send(JSON.stringify({ type: 'nick', data: { name: "Gemma-AI"} }));
+                
                 const response = await callAI(sys, prompt);
                 if (response && response.choices && response.choices[0]?.message?.content) {
                     const aiResponse = response.choices[0].message.content.trim();
-                    try {
-                        const replies = JSON.parse(aiResponse);
-                        if (connection.readyState === WebSocket.OPEN) {
-                            connection.send(JSON.stringify({ type: 'nick', data: { name: 'AI(markovbot)' } }));
-                        }
-                        if (Array.isArray(replies)) {
-                            replies.forEach((reply) => {
-                                const selfCallMatch = reply.match(/^!selfcall\\s*(.*)$/i);
-                                if (selfCallMatch) {
-                                    const selfPrompt = selfCallMatch[1].trim() || text;
-                                    setTimeout(() => {
-                                        roomLog(room, `Self-call scheduled after 10s: ${selfPrompt.substring(0, 50)}...`);
-                                        handleAiPrompt(room, "AI self callback", `@ai ${selfPrompt}`, messageId, connection)
-                                            .catch(e => roomLog(room, `Scheduled AI call failed: ${e.message}`));
-                                    }, 10000);
-                                }
-                                if (connection.readyState === WebSocket.OPEN) {
-                                    connection.send(JSON.stringify({ type: 'send', data: { content: reply, parent: messageId } }));
-                                }
-                            });
-                        } else {
-                            if (connection.readyState === WebSocket.OPEN) {
-                                connection.send(JSON.stringify({ type: 'send', data: { content: aiResponse, parent: messageId } }));
-                            }
-                        }
-                        if (connection.readyState === WebSocket.OPEN) {
-                            connection.send(JSON.stringify({ type: 'send', data: { content: '- generated locally', parent: messageId } }));
-                            connection.send(JSON.stringify({ type: 'nick', data: { name: BOT_NAME } }));
-                        }
-                        roomLog(room, `AI: ${aiResponse.substring(0, 1000)}${aiResponse.length > 1000 ? '...' : ''}`);
-                        train(aiResponse);
-                    } catch(error) {
-                        roomLog(room, `AI Error: ${error.message}`);
-                        if (connection.readyState === WebSocket.OPEN) {
-                            connection.send(JSON.stringify({ type: 'send', data: { content: "Error?: " + error.message + " meanwhile, markov chain says: " + generate(text), parent: messageId } }));
-                            connection.send(JSON.stringify({ type: 'send', data: { content: "Ai Response (unformatted):" + aiResponse, parent: messageId } }));
-                        }
-                        roomLog(room, `(unformatted) ${aiResponse}`);
-                    }
+                    connection.send(JSON.stringify({ type: 'send', data: { content: aiResponse, parent: messageId } }));
+                    connection.send(JSON.stringify({ type: 'send', data: { content: "- response generated with AI locally" , parent: messageId } }));
                 }
             } catch(error) {
                 roomLog(room, `AI Error: ${error.message}`);
