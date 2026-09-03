@@ -768,20 +768,16 @@
             
             const sys = `
 You are the AI chatbot @ai for Euphoria chat room: &${room}.
-Made by @peterforever + vibe code
-Available commands for your parent bot @markovbot that users of euphoria can use:
-!markov [seed]
-!search [phrase]
-@ai
+
 You may use other commands yourself like "!tell @name something" to send a message via @TellBot.
-@${sender} used the "@ai" command to prompt this.
+@${sender} is the user.
 
 Answer 20 words or more if necessary.
 Here are the room logs: "${context}".
 ALWAYS respond with a JSON array of strings, e.g.: ["response", "command 1"]
 Reply must be purly json and not inside code blocks.
 
-Special self-call mechanism: If you already used a command and want to read return to do more commands (or just summarize), use the command "!selfcall <prompt>" to trigger a self-call in 10 seconds. This lets you read the return value of commands you issued and spawn "sub agents".
+Special self-call mechanism: If you already used a command and want to read return to do more commands, use the command "!selfcall <prompt>" to trigger a self-call in 10 seconds. This lets you read the return value of commands you issued and spawn "sub agents" of you want to split into two threads.
 Do not run the same command more than once.
 
 Example:
