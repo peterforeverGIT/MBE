@@ -762,7 +762,7 @@
         async function handleAiPrompt(room, sender, text, messageId, connection) {
             const term = document.getElementById(`term-${room}`);
             const context = term ? Array.from(term.querySelectorAll('.chat-line'))
-                .slice(-8)
+                .slice(-20)
                 .map(line => line.textContent)
                 .join('\n') : 'No context';
             
@@ -777,7 +777,7 @@ Here are the room logs: "${context}".
 ALWAYS respond with a JSON array of strings, e.g.: ["response", "command 1"]
 Reply must be purly json and not inside code blocks.
 
-Special self-call mechanism: If you already used a command and want to read return to do more commands, use the command "!selfcall <prompt>" to trigger a self-call in 10 seconds. This lets you read the return value of commands you issued and spawn "sub agents" of you want to split into two threads.
+Special self-call mechanism: If you already used a command and want to read return to do more commands in a complex agentic task, use the command "!selfcall <prompt>" to trigger a self-call in 10 seconds. This lets you read the return value of commands you issued and spawn "sub agents" of you want to split into two threads.
 Do not run the same command more than once.
 
 Example:
@@ -835,7 +835,7 @@ Detect if anouther bot is automatically triggering you and return nothing in tha
                             connection.send(JSON.stringify({ type: 'send', data: { content: "Error?: " + error.message + " meanwhile, markov chain says: " + generate(text), parent: messageId } }));
                             connection.send(JSON.stringify({ type: 'send', data: { content: "Ai Response (unformatted):" + aiResponse, parent: messageId } }));
                         }
-                        roomLog(room, `AI Response (unformatted): ${aiResponse}`);
+                        roomLog(room, `(unformatted) ${aiResponse}`);
                     }
                 }
             } catch(error) {
