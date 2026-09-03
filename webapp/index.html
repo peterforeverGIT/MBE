@@ -765,7 +765,8 @@
                 .slice(-20)
                 .map(line => line.textContent)
                 .join('\n') : 'No context';
-            
+            const prompt = text.trim();
+            if (!prompt) return;
             const sys = `
 You are the AI chatbot @ai for Euphoria chat room: &${room}. (child bot of @markovbot
 
@@ -788,9 +789,9 @@ Do not use !selfcall to verify when there are no commands used, just terminate w
 Finish without any !selfcall command, for example ["1+1=?, hmm it is 2","The answer is 2."]
 Remember to *always* reply using direct pure JSON array of strings without the \`\`\` code blocks.
 Detect if anouther bot is automatically triggering you and return nothing in that case.
+@${sender} prompted you with: ${prompt} 
 `;
-            const prompt = text.trim();
-            if (!prompt) return;
+            
             
             roomLog(room, `@${sender} prompted: ${text}`);
             aiBusy = true;
