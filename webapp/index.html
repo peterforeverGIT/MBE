@@ -225,8 +225,6 @@
         <div class="ai-controls">
             <strong>🤖 Mistral AI Configuration</strong>
             <div style="display: flex; gap: 5px; margin-top: 8px;">
-                <input type="password" id="mistralApiKey" placeholder="Enter your Mistral API key" style="flex: 1;">
-                <button onclick="saveApiKey()">Save Key</button>
                 <button onclick="testAiConnection()">Test Connection</button>
             </div>
             <div id="aiStatus" class="ai-status">API key not configured</div>
@@ -280,7 +278,7 @@
         </div>
         <span class="maker-tag">Maker: peterforever + gemini + mistral</span>
     </div>
-
+    <script src="webllm-ai.js"></script>
     <script>
         // === GLOBAL STATE ===
         var brain = { 1: {}, 2: {}, 3: {}, 4: {} };
@@ -455,7 +453,7 @@
                     }
                 });
             }
-            results.sort(function(a, b) { return b.timestamp - a.timestamp; });
+            .sort(function(a, b) { return b.timestamp - a.timestamp; });
             return results;
         }
 
@@ -495,57 +493,7 @@
             document.getElementById('searchResultsInfo').textContent = '';
         }
 
-        // === AI KEY MANAGEMENT ===
-        function saveApiKey() {
-            if (isFileProtocol) {
-                gLog("⚠️ Cannot save API key in file:// mode.");
-                return;
-            }
-            mistralApiKey = document.getElementById('mistralApiKey').value.trim();
-            if (mistralApiKey) {
-                try {
-                    sessionStorage.setItem('mistral_api_key', mistralApiKey);
-                    updateAiStatus(true);
-                    gLog("🔑 Mistral API key saved to session storage.");
-                } catch(e) {
-                    gLog("⚠️ Failed to save API key: " + e.message);
-                }
-            } else {
-                sessionStorage.removeItem('mistral_api_key');
-                mistralApiKey = null;
-                updateAiStatus(false);
-            }
-            document.getElementById('mistralApiKey').value = '';
-        }
-
-        function loadApiKey() {
-            if (isFileProtocol) return;
-            try {
-                mistralApiKey = sessionStorage.getItem('mistral_api_key');
-                if (mistralApiKey) {
-                    updateAiStatus(true);
-                }
-            } catch(e) {
-                gLog("⚠️ Failed to load API key: " + e.message);
-            }
-        }
-
-        function updateAiStatus(connected) {
-            var statusEl = document.getElementById('aiStatus');
-            if (connected) {
-                statusEl.textContent = "🟢 Mistral AI connected (key stored in session)";
-                statusEl.className = "ai-status connected";
-            } else {
-                statusEl.textContent = "🔴 Mistral AI disconnected (no key)";
-                statusEl.className = "ai-status disconnected";
-            }
-        }
-
         async function testAiConnection() {
-            if (!mistralApiKey) {
-                gLog("⚠️ No API key configured.");
-                return;
-            }
             if (isFileProtocol) {
                 gLog("⚠️ Cannot test API in file:// mode.");
                 return;
@@ -553,7 +501,7 @@
             aiBusy = true;
             gLog("🔍 Testing Mistral AI connection...");
             try {
-                const response = await callMistralAPI("", "Say 'test successful'");
+                const response = await callAI("", "Say 'test successful'");
                 if (response && response.choices && response.choices[0]) {
                     gLog("✅ Mistral AI connection test passed!");
                 } else {
@@ -567,42 +515,11 @@
         }
 
         async function callMistralAPI(sys, prompt) {
-            if (!mistralApiKey) {
-                throw new Error("Mistral API key not configured");
-            }
-            const url = 'https://api.mistral.ai/v1/chat/completions';
-            const headers = {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${mistralApiKey}`
-            };
-            const body = JSON.stringify({
-                model: 'mistral-medium-latest',
-                messages: [
-                    { role: "system", content: sys },
-                    { role: "user", content: prompt }
-                ],
-                temperature: 0.2,
-                max_tokens: 1000
-            });
-            const response = await fetch(url, {
-                method: 'POST',
-                headers: headers,
-                body: body
-            });
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({}));
-                throw new Error(`API error: ${response.status} ${response.statusText}` +
-                           (errorData.message ? ' - ' + errorData.message : ''));
-            }
-            return await response.json();
+            callAI(sys,prompt);
         }
 
         // === AI PROMPT HANDLING ===
         async function handleAiPrompt(room, sender, text, messageId, connection) {
-            if (!mistralApiKey) {
-                roomLog(room, "AI not configured - no API key");
-                return;
-            }
             //if (aiBusy) {
             //    roomLog(room, "AI is busy processing another request");
             //    return;
