@@ -762,7 +762,7 @@
         async function handleAiPrompt(room, sender, text, messageId, connection) {
             const term = document.getElementById(`term-${room}`);
             const context = term ? Array.from(term.querySelectorAll('.chat-line'))
-                .slice(-4)
+                .slice(-8)
                 .map(line => line.textContent)
                 .join('\n') : 'No context';
             
