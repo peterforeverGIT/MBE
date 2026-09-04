@@ -1094,8 +1094,8 @@ Detect if anouther bot is automatically triggering you or if you are in a loop a
                 }
                 if (packet.type === 'send-reply') {
                     roomLog(roomName, "@"+packet.sender.name+": "+packet.content);
-                    addMessageToNotifyList(roomName, packet.sender.name, packet.content, packet.data.id);
-                    addToChatRecords(roomName, packet.sender.name, packet.content, packet.data.id);
+                    addMessageToNotifyList(roomName, packet.data.sender.name, packet.data.content, packet.data.id);
+                    addToChatRecords(roomName, packet.data.sender.name, packet.data.content, packet.data.id);
                     return;
                 }
                 if (packet.type === 'send-event') {
