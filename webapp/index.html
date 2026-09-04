@@ -942,20 +942,7 @@ Detect if anouther bot is automatically triggering you or if you are in a loop a
 
         // === MARKOV CHAIN ===
         function train(text) {
-            if (!text || typeof text !== 'string') return;
-            for (var n = 1; n <= 4; n++) { if (!brain[n]) brain[n] = {}; }
-            var words = text.toLowerCase().trim().split(/\s+/);
-            if (words.length === 0) return;
-            words.push(".");
-            for (var n = 1; n <= 4; n++) {
-                for (var i = 0; i <= words.length - n - 1; i++) {
-                    var key = words.slice(i, i + n).join(' ');
-                    var next = words[i + n];
-                    if (!brain[n][key]) brain[n][key] = [];
-                    brain[n][key].push(next);
-                }
-            }
-            saveBrain();
+            return;
         }
 
         function generate(seedText) {
