@@ -1023,42 +1023,23 @@ Detect if anouther bot is automatically triggering you or if you are in a loop a
         function addRoom(roomName) {
             var r = roomName || document.getElementById('newRoom').value.replace('&', '').trim();
             if (r && !connections[r]) {
-                // Create tab button
                 var btn = document.createElement('button');
                 btn.className = 'tab-btn';
                 btn.id = 'btn-' + r;
-                btn.textContent = '&' + r;
-
-        // Create close button
-                var closeBtn = document.createElement('button');
-                closeBtn.className = 'close-btn';
-                closeBtn.textContent = 'X';
-                closeBtn.onclick = function(e) {
-                e.stopPropagation(); // Prevent tab switch
-                removeRoom(r);
-        };
-
-        // Append close button to tab button
-        btn.appendChild(closeBtn);
-
-        // Set tab switch on click
-        btn.onclick = function() { switchTab(r); };
-
-        document.getElementById('tabBar').appendChild(btn);
-
-        // Create terminal content
-        var term = document.createElement('div');
-        term.className = 'tab-content';
-        term.id = 'term-' + r;
-        term.style.display = 'none';
-        document.getElementById('terminalContainer').appendChild(term);
-
-        connectToRoom(r);
-        switchTab(r);
-        if (!roomName) document.getElementById('newRoom').value = "";
-        saveRooms();
-    }
-}
+                btn.innerHTML = '&' + r + ' <span class="btn-red" onclick="removeRoom(\'' + r + '\'); event.stopPropagation();">X</span>';
+                btn.onclick = function() { switchTab(r); };
+                document.getElementById('tabBar').appendChild(btn);
+                var term = document.createElement('div');
+                term.className = 'tab-content';
+                term.id = 'term-' + r;
+                term.style.display = 'none';
+                document.getElementById('terminalContainer').appendChild(term);
+                connectToRoom(r);
+                switchTab(r);
+                if (!roomName) document.getElementById('newRoom').value = "";
+                saveRooms();
+            }
+        }
 
         // === WEBSOCKET CONNECTION ===
         function connectToRoom(roomName) {
