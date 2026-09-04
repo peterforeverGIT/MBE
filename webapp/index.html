@@ -1067,7 +1067,7 @@ Detect if anouther bot is automatically triggering you or if you are in a loop a
                 catch (err) { roomLog(roomName, "⚠️ Invalid JSON: " + e.data); return; }
                 
                 if (packet.type === 'ping-event') {
-                    ws.send(JSON.stringify({ type: 'ping-reply', data: { time: packet.data.time } }));
+                    ws.send(JSON.stringify({ type: 'ping-reply', data: { time: packet.data.time, next: packet.data.next} }));
                     return;
                 }
                 if (packet.type === 'snapshot-event') {
