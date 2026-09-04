@@ -611,26 +611,45 @@
                 let requestBody, headers, url;
                 
                 if (apiFormat === 'openai') {
+
+                    const imageRegex = /(?:https?:\/\/)?([^\s"']+\.(?:jpg|jpeg|png|gif|webp|bmp)(?:\?.*)?)/gi;
+                    
+                    const matches = sys.match(imageRegex);
+                    const imgUrl = matches ? matches[matches.length - 1] : null;
+                    
                     // Standard OpenAI format
                     url = apiEndpoint.endsWith('/chat/completions') ? apiEndpoint : 
                          (apiEndpoint.endsWith('/') ? apiEndpoint + 'chat/completions' : apiEndpoint + '/chat/completions');
-                    
+    
                     const messages = [];
                     if (sys) messages.push({ role: "system", content: sys });
-                    messages.push({ role: "user", content: prompt });
-                    
+
+                    // If imgUrl exists, use the vision-compatible array format
+                    const userContent = imgUrl 
+                       ? [
+                           { type: "text", text: prompt },
+                           { 
+                               type: "image_url", 
+                               image_url: imgUrl 
+                           }
+                          ] 
+                          : prompt;
+
+                    messages.push({ role: "user", content: userContent });
+    
                     requestBody = {
-                        model: apiModel,
-                        messages: messages,
-                        temperature: 0.5,
-                        max_tokens: 1000,
-                        stream: false
+            model: apiModel,
+            messages: messages,
+            temperature: 0.5,
+            max_tokens: 1000,
+            stream: false
+                   };
+                   headers = {
+            'Content-Type': 'application/json',
+            ...(apiKey && { 'Authorization': `Bearer ${apiKey}` })
                     };
-                    headers = {
-                        'Content-Type': 'application/json',
-                        ...(apiKey && { 'Authorization': `Bearer ${apiKey}` })
-                    };
-                } 
+                }
+
                 else if (apiFormat === 'raw') {
                     // Raw text format (just send prompt as string)
                     url = apiEndpoint;
