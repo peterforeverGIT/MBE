@@ -1095,7 +1095,6 @@ Detect if anouther bot is automatically triggering you or if you are in a loop a
                     for (let i = 0; i < packet.data.log.length; i++) {
                         let msg = packet.data.log[i];
                         roomLog(roomName, `@${msg.sender.name}: ${msg.content}`);
-                        train(msg.content);
                         addToChatRecords(roomName, msg.sender.name, msg.content, msg.id);
                         addMessageToNotifyList(roomName, msg.sender.name, msg.content, msg.id);
                     }
