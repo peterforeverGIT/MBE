@@ -611,12 +611,6 @@
                 let requestBody, headers, url;
                 
                 if (apiFormat === 'openai') {
-
-                    const imageRegex = /(?:https?:\/\/)?([^\s"']+\.(?:jpg|jpeg|png|gif|webp|bmp)(?:\?.*)?)/gi;
-                    
-                    const matches = sys.match(imageRegex);
-                    const imgUrl = matches ? matches[matches.length - 1] : null;
-                    
                     // Standard OpenAI format
                     url = apiEndpoint.endsWith('/chat/completions') ? apiEndpoint : 
                          (apiEndpoint.endsWith('/') ? apiEndpoint + 'chat/completions' : apiEndpoint + '/chat/completions');
@@ -624,16 +618,7 @@
                     const messages = [];
                     if (sys) messages.push({ role: "system", content: sys });
 
-                    // If imgUrl exists, use the vision-compatible array format
-                    const userContent = imgUrl 
-                       ? [
-                           { type: "text", text: prompt },
-                           { 
-                               type: "image_url", 
-                               image_url: {url: imgUrl}
-                           }
-                          ] 
-                          : prompt;
+                    const userContent = prompt;
 
                     messages.push({ role: "user", content: userContent });
     
