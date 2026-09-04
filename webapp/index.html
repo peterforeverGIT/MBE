@@ -290,7 +290,26 @@
         
         <span class="maker-tag">Maker: peterforever + vibe</span>
     </div>
+    <script>
+    // === LOCALSTORAGE PERSISTENCE ===
+    function saveBrain() {
+    
+        gLog("⚠️ Failed to save brain: " + (e && e.message ? e.message : e));
+        
+    }
 
+    function loadBrain() {
+        initializeBrain();
+    }
+
+    // Call load on startup (place this after initializeBrain() or where initialization runs)
+    if (typeof loadBrain === 'function') loadBrain();
+
+    // Hook saving to beforeunload so users don't lose data
+    if (typeof saveBrain === 'function') {
+        window.addEventListener('beforeunload', saveBrain);
+    }
+    </script>
     <script>
         // === GLOBAL STATE ===
         var brain = { 1: {}, 2: {}, 3: {}, 4: {} };
