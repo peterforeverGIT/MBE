@@ -826,6 +826,13 @@ Output command has to be a single command.
 
 DO NOT USE ANY \`\`\` CODE BLOCKS TO ENCIRCLE THE JSON!
 
+EXAMPLE VALID OUTPUT:
+  {
+    "thoughts": "The user asked me to run the "!tell @name message" command so I will provide a summary and run the command",
+    "summaryReply": "I am going to run the !tell command",
+    "outputcommand": "!tell @name this gets relayed to you!"
+  }
+
 Do not run the same command more than once.
 
 You are an ai model made by google and the bot is made by @peterforever.
@@ -862,6 +869,13 @@ Detect if anouther bot is automatically triggering you or if you are in a loop a
                     }
                 } catch (e) {
                     roomLog(room, `❌ Agent Error: ${e.message}`);
+                    connection.send(JSON.stringify({
+                        type: 'send',
+                        data: {
+                            content: rawResponse + " — generated locally with gemma ai model",
+                            parent: messageId
+                        }
+                    }));
                     return;
                 }
                 // Send the summary to the room
