@@ -860,13 +860,10 @@ Detect if anouther bot is automatically triggering you or if you are in a loop a
                     try {
                         agentResponse = JSON.parse(rawResponse);
                     } catch (e) {
-                        connection.send(JSON.stringify({
-                            type: 'send',
-                            data: {
-                            content: rawResponse + " — generated locally with gemma ai model",
-                            parent: messageId
-                            }
-                        }));
+                        cleaned = rawResponse
+
+                        cleaned = cleaned.replace(/^```json\s*/, '').replace(/^```\s*/, '').replace(/\s*```$/, '');
+                        agentResponse = JSON.parse(cleaned);
                     }
                     // Validate required fields
                     if (
