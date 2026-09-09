@@ -851,7 +851,7 @@ Detect if anouther bot is automatically triggering you or if you are in a loop a
                     try {
                         // Extract the AI's raw response text
                         const rawResponse = response.choices[0].message.content.trim();
-                    catch (e) {
+                    } catch (e) {
                         roomLog(room, `AI Error: ${e.message}`);
                         return;
                     }
