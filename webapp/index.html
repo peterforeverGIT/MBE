@@ -848,13 +848,7 @@ Detect if anouther bot is automatically triggering you or if you are in a loop a
 
                 let agentResponse;
                 try {
-                    try {
-                        // Extract the AI's raw response text
-                        const rawResponse = response.choices[0].message.content.trim();
-                    } catch (e) {
-                        roomLog(room, `AI Error: ${e.message}`);
-                        return;
-                    }
+                    const rawResponse = response.choices[0].message.content.trim();
                     // Parse the JSON
                     agentResponse = JSON.parse(rawResponse);
 
@@ -867,7 +861,7 @@ Detect if anouther bot is automatically triggering you or if you are in a loop a
                         throw new Error("Missing or invalid fields in agent response.");
                     }
                 } catch (e) {
-                    roomLog(room, `❌ Agent Error: ${e.message}. Raw response: ${rawResponse}`);
+                    roomLog(room, `❌ Agent Error: ${e.message}`);
                     return;
                 }
                 // Send the summary to the room
