@@ -953,7 +953,7 @@ Detect if anouther bot is automatically triggering you or if you are in a loop a
             if (!searchMatch);
             const query = searchMatch[1].trim();
             const results = searchChatRecords(query);
-            if (results.length === 0) {
+            if (results.length === 0 && connection != null) {
                 if (connection.readyState === WebSocket.OPEN) {
                     connection.send(JSON.stringify({ type: 'send', data: { content: `No results found for "${query}"`, parent: messageId } }));
                 }
@@ -961,7 +961,7 @@ Detect if anouther bot is automatically triggering you or if you are in a loop a
                 const resultText = results.slice(0, 20).map(r => 
                     `[&${r.room}] ${r.sender}: ${r.text.substring(0, 100)}${r.text.length > 100 ? '...' : ''}`
                 ).join('| \n |');
-                if (connection.readyState === WebSocket.OPEN) {
+                if (connection != null) {
                     connection.send(JSON.stringify({ 
                         type: 'send', 
                         data: { 
