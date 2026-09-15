@@ -817,10 +817,10 @@ You are the smart AI chatbot/Autonomous agent called @Gemma-AI for Euphoria chat
   {
     "thoughts": "Your internal reasoning (not sent to the room)",
     "summaryReply": "A message to send to the room and user via WebSocket",
-    "outputcommand": "!end || !help @<BOT_NAME> || !tell @<name> <message> || <custom command for anouther bot>"
+    "outputcommand": "!end || !help @<BOT_NAME> || !tell @<name> <message> || !search <string> || <custom command for anouther bot>"
   }
 
-!end ends if you have replied to user, !help @<Bot name> gives the help message of the bot, and !tell <name> <message> sends a message to person with <name>.
+!end ends if you have replied to user, !help @<Bot name> gives the help message of the bot, !tell <name> <message> sends a message to person with <name> and the !search <text> command gives a list of matches in previous euphoria chats.
 
 Output command has to be a single command.
 
@@ -834,6 +834,8 @@ EXAMPLE VALID OUTPUT:
   }
 
 Do not run the same command more than once.
+
+Use the !search <text> command to gain context in Euphoria from chats all the way back.
 
 You are an ai model made by google and the bot is made by @peterforever.
 Users can use "@ai <prompt>" to prompt you.
@@ -898,6 +900,25 @@ Detect if anouther bot is automatically triggering you or if you are in a loop a
                     roomLog(room, "Finished replying");
                     return;
                 }
+                if (agentResponse.outputcommand.startsWith("!search")) {
+                    result = handleSearchCommand(null, null, agentResponse.outputcommand, null, null);
+                    connection.send(JSON.stringify({
+                        type: 'send',
+                        data: {
+                            content: "/me — Euphoria searching 🌐",
+                            parent: messageId
+                        }
+                    }));
+                    setTimeout(() => {
+                      handleAiPrompt(
+                        room,
+                        sender,
+                        `You used !search command which returned ${result}. If no more commands are needed to fulfill prompt:"${text}", summarize and use !end to exit and do not use ${agentResponse.outputcommand} command again, just use the output a message and use !end.`,
+                        messageId,
+                        connection
+                      );
+                    }, 10000);
+                }
 
                 connection.send(JSON.stringify({
                     type: 'send',
@@ -929,7 +950,7 @@ Detect if anouther bot is automatically triggering you or if you are in a loop a
 
         function handleSearchCommand(room, sender, text, messageId, connection) {
             const searchMatch = text.match(/!search\s+(.+)/i);
-            if (!searchMatch) return false;
+            if (!searchMatch);
             const query = searchMatch[1].trim();
             const results = searchChatRecords(query);
             if (results.length === 0) {
@@ -950,7 +971,7 @@ Detect if anouther bot is automatically triggering you or if you are in a loop a
                     }));
                 }
             }
-            return true;
+            return resultText;
         }
 
         // === NOTIFY LOCALSTORAGE ===
@@ -1196,9 +1217,10 @@ Detect if anouther bot is automatically triggering you or if you are in a loop a
                     addToChatRecords(roomName, data.sender.name, text, data.id);
                     var lowerText = text.toLowerCase();
                     var isMentioned = (lowerText.indexOf('@' + BOT_NAME) !== -1);
+                    
                     if (lowerText.startsWith('!search')) {
-                        handleSearchCommand(roomName, data.sender.name, text, data.id, ws);
-                        handleAiPrompt(roomName, data.sender.name, "Summarize search results (in chat history)", data.id, ws);
+                        let searchResult = handleSearchCommand(roomName, data.sender.name, text, data.id, ws);
+                        handleAiPrompt(roomName, data.sender.name, "SEARCH RESULTS: " + searchResult + " Summarize search results.", data.id, ws);
                         return;
                     }
                     if (lowerText.includes('@ai')) {
