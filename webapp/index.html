@@ -817,10 +817,10 @@ You are the smart AI chatbot/Autonomous agent called @Gemma-AI for Euphoria chat
   {
     "thoughts": "Your internal reasoning (not sent to the room)",
     "summaryReply": "A message to send to the room and user via WebSocket",
-    "outputcommand": "!end || !help || !ping || !help @<BOT_NAME> || <custom command for anouther bot>"
+    "outputcommand": "!end || !help @<BOT_NAME> || !tell @<name> <message> || <custom command for anouther bot>"
   }
 
-!end ends if you have replied to user. !ping lists bots, and !help @<Bot name> gives the help message of the bot.
+!end ends if you have replied to user, !help @<Bot name> gives the help message of the bot, and !tell <name> <message> sends a message to person with <name>.
 
 Output command has to be a single command.
 
@@ -840,7 +840,7 @@ Users can use "@ai <prompt>" to prompt you.
 User used @ai command to call you.
 Try to answer in 40 words but more if necessary.
 Detect if anouther bot is automatically triggering you or if you are in a loop and return nothing in that case.
-@${sender} is the user who prompted you
+@${sender} is the user who prompted you.
 `;     
             roomLog(room, `@${sender} prompted: ${text}`);
             aiBusy = true;
@@ -884,6 +884,8 @@ Detect if anouther bot is automatically triggering you or if you are in a loop a
                     }));
                     return;
                 }
+
+                roomLog(room, "Gemma-AI internal thoughts: "+ agentResponse.thoughts);
                 // Send the summary to the room
                 connection.send(JSON.stringify({
                   type: 'send',
@@ -910,7 +912,7 @@ Detect if anouther bot is automatically triggering you or if you are in a loop a
                   handleAiPrompt(
                     room,
                     sender,
-                    `You used ${agentResponse.outputcommand}, if no more commands are needed to fulfill prompt:"${text}", summarize and use !end to exit, do not use ${agentResponse.outputcommand} command again, just use the output in chat history`,
+                    `You used ${agentResponse.outputcommand}, if no more commands are needed to fulfill prompt:"${text}", summarize and use !end to exit, do not use ${agentResponse.outputcommand} command again, just use the output a message and use !end.`,
                     messageId,
                     connection
                   );
