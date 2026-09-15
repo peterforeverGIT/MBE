@@ -928,7 +928,7 @@ Detect if anouther bot is automatically triggering you or if you are in a loop a
         }
 
         function handleSearchCommand(room, sender, text, messageId, connection) {
-            const searchMatch = text.match(/!search\\s+(.+)/i);
+            const searchMatch = text.match(/!search\s+(.+)/i);
             if (!searchMatch) return false;
             const query = searchMatch[1].trim();
             const results = searchChatRecords(query);
@@ -939,12 +939,12 @@ Detect if anouther bot is automatically triggering you or if you are in a loop a
             } else {
                 const resultText = results.slice(0, 20).map(r => 
                     `[&${r.room}] ${r.sender}: ${r.text.substring(0, 100)}${r.text.length > 100 ? '...' : ''}`
-                ).join(' | ');
+                ).join('| \n |');
                 if (connection.readyState === WebSocket.OPEN) {
                     connection.send(JSON.stringify({ 
                         type: 'send', 
                         data: { 
-                            content: `Search results for "${query}": \n ${resultText}${results.length > 20 ? ` (+${results.length - 20} more)` : ''}`,
+                            content: `Search results for "${query}": \n ${resultText}${results.length > 20 ? ` (+${results.length - 20} more hidden results)` : ''}`,
                             parent: messageId 
                         } 
                     }));
@@ -1198,7 +1198,7 @@ Detect if anouther bot is automatically triggering you or if you are in a loop a
                     var isMentioned = (lowerText.indexOf('@' + BOT_NAME) !== -1);
                     if (lowerText.startsWith('!search')) {
                         handleSearchCommand(roomName, data.sender.name, text, data.id, ws);
-                        handleAiPrompt(roomName, data.sender.name, "Summarize search", data.id, ws);
+                        handleAiPrompt(roomName, data.sender.name, "Summarize search results (in chat history)", data.id, ws);
                         return;
                     }
                     if (lowerText.includes('@ai')) {
