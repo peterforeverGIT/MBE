@@ -1229,14 +1229,16 @@ Detect if anouther bot is automatically triggering you or if you are in a loop a
                     
                     if (lowerText.startsWith('!search')) {
                         let searchResult = handleSearchCommand(roomName, data.sender.name, text, data.id, ws);
-                        let res = await callAI("", "Summarize " + searchResult+ "SUMMARIZE and give helpful responce to user that is relevant to the search phrase \"" + text + "\". 50 words max.");
-                        ws.send(JSON.stringify({ 
-                            type: 'send', 
-                            data: { 
-                                content: "Search Assist: " + res,
-                                parent: data.id 
-                            } 
-                        }));
+                        callAI("", "Summarize " + searchResult+ "SUMMARIZE and give helpful responce to user that is relevant to the search phrase \"" + text + "\". 50 words max.").then(aiResp => { 
+                            const text = aiResp?.choices?.[0]?.message?.content ?? JSON.stringify(aiResp);
+                            ws.send(JSON.stringify({ 
+                                type:'send', 
+                                data: { 
+                                    content: "Search Assist: " + text, 
+                                    parent: data.id 
+                                }
+                            }));
+                        }).catch(err => { console.error(err); ws.send(JSON.stringify({ type:'send', data: { content: "Search Assist failed", parent: data.id }})); }); 
                         return;
                     }
                     addToChatRecords(roomName, data.sender.name, text, data.id);
