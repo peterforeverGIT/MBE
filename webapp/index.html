@@ -950,30 +950,38 @@ Detect if anouther bot is automatically triggering you or if you are in a loop a
 
         function handleSearchCommand(room, sender, text, messageId, connection) {
             const searchMatch = text.match(/!search\s+(.+)/i);
-            if (!searchMatch) return "Invalid search command";
+            if (!searchMatch) {
+                return "Invalid !search command (missing query)";
+            }
             const query = searchMatch[1].trim();
             const results = searchChatRecords(query);
-            const resultText = "No search results";
-            if (results.length === 0 && connection != null) {
-                if (connection.readyState === WebSocket.OPEN) {
-                    connection.send(JSON.stringify({ type: 'send', data: { content: `No results found for "${query}"`, parent: messageId } }));
+
+            let resultText;
+            if (results.length === 0) {
+                resultText = `No results found for "${query}"`;
+                if (connection && connection.readyState === WebSocket.OPEN) {
+                    connection.send(JSON.stringify({
+                    type: 'send',
+                    data: { content: resultText, parent: messageId }
+                    }));
                 }
             } else {
-                resultText = results.slice(0, 20).map(r => 
-                    `[&${r.room}] ${r.sender}: ${r.text.substring(0, 100)}${r.text.length > 100 ? '...' : ''}`
+                resultText = results.slice(0, 20).map(r =>
+                `[&${r.room}] ${r.sender}: ${r.text.substring(0, 100)}${r.text.length > 100 ? '...' : ''}`
                 ).join('| \n |');
-                if (connection != null) {
-                    connection.send(JSON.stringify({ 
-                        type: 'send', 
-                        data: { 
+                if (connection && connection.readyState === WebSocket.OPEN) {
+                    connection.send(JSON.stringify({
+                        type: 'send',
+                        data: {
                             content: `Search results for "${query}": \n ${resultText}${results.length > 20 ? ` (+${results.length - 20} more hidden results)` : ''}`,
-                            parent: messageId 
-                        } 
+                            parent: messageId
+                        }
                     }));
                 }
             }
             return resultText;
         }
+                                                                                                                   }
 
         // === NOTIFY LOCALSTORAGE ===
         function loadUsername() {
@@ -1217,13 +1225,13 @@ Detect if anouther bot is automatically triggering you or if you are in a loop a
                     addMessageToNotifyList(roomName, data.sender.name, text, data.id);
                     var lowerText = text.toLowerCase();
                     var isMentioned = (lowerText.indexOf('@' + BOT_NAME) !== -1);
+                    addToChatRecords(roomName, data.sender.name, text, data.id);
                     
                     if (lowerText.startsWith('!search')) {
                         let searchResult = handleSearchCommand(roomName, data.sender.name, text, data.id, ws);
                         handleAiPrompt(roomName, data.sender.name, "SEARCH RESULTS: " + searchResult + " Summarize search results.", data.id, ws);
                         return;
                     }
-                    addToChatRecords(roomName, data.sender.name, text, data.id);
                     if (lowerText.includes('@ai')) {
                         handleAiPrompt(roomName, data.sender.name, text, data.id, ws);
                     }
