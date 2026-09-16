@@ -1224,13 +1224,13 @@ Detect if anouther bot is automatically triggering you or if you are in a loop a
                     addMessageToNotifyList(roomName, data.sender.name, text, data.id);
                     var lowerText = text.toLowerCase();
                     var isMentioned = (lowerText.indexOf('@' + BOT_NAME) !== -1);
-                    addToChatRecords(roomName, data.sender.name, text, data.id);
                     
                     if (lowerText.startsWith('!search')) {
                         let searchResult = handleSearchCommand(roomName, data.sender.name, text, data.id, ws);
                         handleAiPrompt(roomName, data.sender.name, "SEARCH RESULTS: " + searchResult + " Summarize search results.", data.id, ws);
                         return;
                     }
+                    addToChatRecords(roomName, data.sender.name, text, data.id);
                     if (lowerText.includes('@ai')) {
                         handleAiPrompt(roomName, data.sender.name, text, data.id, ws);
                     }
