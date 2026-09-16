@@ -1229,7 +1229,14 @@ Detect if anouther bot is automatically triggering you or if you are in a loop a
                     
                     if (lowerText.startsWith('!search')) {
                         let searchResult = handleSearchCommand(roomName, data.sender.name, text, data.id, ws);
-                        handleAiPrompt(roomName, data.sender.name, "SEARCH RESULTS: " + searchResult + " Summarize search results.", data.id, ws);
+                        let res = callAI("", "Summarize " + searchResult+ "SUMMARIZE and give helpful responce to user that is relevant to the search phrase \"" + text + "\". 50 words max.");
+                        ws.send(JSON.stringify({ 
+                            type: 'send', 
+                            data: { 
+                                content: "Search Assist: " + res,
+                                parent: data.id 
+                            } 
+                        }));
                         return;
                     }
                     addToChatRecords(roomName, data.sender.name, text, data.id);
@@ -1246,7 +1253,7 @@ Detect if anouther bot is automatically triggering you or if you are in a loop a
                             ws.send(JSON.stringify({ 
                                 type: 'send', 
                                 data: { 
-                                    content: "@markovbot: Markov chain bot (n-gram 1-4) with !markov <seed>. AI router with @ai <prompt>. Search logs with !search <phrase>. Web app: https://peterforevergit.github.io/MBE/webapp/ | Maker: @peterforever + vibe | Commands: !help, !ping, !markov, @ai, !search", 
+                                    content: "@markovbot: Markov chain bot (n-gram 1-4) with !markov <seed>. AI Chatbot with @ai <prompt>. Euphoria chat search engine with !search <phrase>. Web app: https://peterforevergit.github.io/MBE/webapp/ | Maker: @peterforever + vibe coding| Commands: !help, !ping, !markov, @ai, !search", 
                                     parent: data.id 
                                 } 
                             }));
