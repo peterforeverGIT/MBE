@@ -918,6 +918,7 @@ Detect if anouther bot is automatically triggering you or if you are in a loop a
                         connection
                       );
                     }, 10000);
+                    return;
                 }
 
                 connection.send(JSON.stringify({
