@@ -1334,8 +1334,21 @@ Detect if anouther bot is automatically triggering you or if you are in a loop a
             if (!reply) return;
             var connection = connections[selectedMessage.room];
             if (connection && connection.readyState === WebSocket.OPEN) {
+                var nick = (currentUserName && currentUserName !== BOT_NAME) ? currentUserName : BOT_NAME;
+                if (nick !== BOT_NAME) {
+                    connection.send(JSON.stringify({ type: 'nick', data: { name: nick } }));
+                }
                 connection.send(JSON.stringify({ type: 'send', data: { content: reply, parent: selectedMessage.id } }));
-                roomLog(selectedMessage.room, `REPLIED: ${reply}`);
+                roomLog(selectedMessage.room, `REPLIED as ${nick}: ${reply}`);
+                if (nick !== BOT_NAME) {
+                    // Restore bot nick after sending
+                    setTimeout(function() {
+                        if (connection.readyState === WebSocket.OPEN) {
+                            connection.send(JSON.stringify({ type: 'nick', data: { name: BOT_NAME } }));
+                        }
+                    }, 300);
+                }
+                document.getElementById('notifyReplyText').value = '';
             }
         }
 
@@ -1345,8 +1358,20 @@ Detect if anouther bot is automatically triggering you or if you are in a loop a
             if (!room || !reply) return;
             var connection = connections[room];
             if (connection && connection.readyState === WebSocket.OPEN) {
+                var nick = (currentUserName && currentUserName !== BOT_NAME) ? currentUserName : BOT_NAME;
+                if (nick !== BOT_NAME) {
+                    connection.send(JSON.stringify({ type: 'nick', data: { name: nick } }));
+                }
                 connection.send(JSON.stringify({ type: 'send', data: { content: reply } }));
-                roomLog(room, `SENT TO NULL THREAD: ${reply}`);
+                roomLog(room, `SENT TO NULL THREAD as ${nick}: ${reply}`);
+                if (nick !== BOT_NAME) {
+                    setTimeout(function() {
+                        if (connection.readyState === WebSocket.OPEN) {
+                            connection.send(JSON.stringify({ type: 'nick', data: { name: BOT_NAME } }));
+                        }
+                    }, 300);
+                }
+                document.getElementById('notifyReplyText').value = '';
             }
         }
 
