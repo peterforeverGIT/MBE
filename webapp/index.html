@@ -213,7 +213,7 @@
             position: relative;
         }
         .msg:hover { background: rgba(0,0,0,0.08); }
-        .msg.reply-target { background: var(--reply-bg); }
+        .msg.reply-target { outline: 1px solid var(--accent); outline-offset: -1px; }
         .msg-avatar {
             width: 40px; height: 40px;
             border-radius: 50%;
@@ -252,24 +252,32 @@
             cursor: pointer;
         }
         .msg-reply-bar {
-            display: flex;
+            display: inline-flex;
             align-items: center;
-            gap: 6px;
-            margin-bottom: 4px;
-            font-size: 13px;
+            gap: 5px;
+            margin-bottom: 2px;
+            font-size: 12px;
             color: var(--text-muted);
             cursor: pointer;
+            opacity: 0.85;
+            max-width: 100%;
+            min-width: 0;
         }
-        .msg-reply-bar:hover { color: var(--text-secondary); }
-        .msg-reply-bar .reply-icon { font-size: 14px; }
-        .msg-reply-bar .reply-author { font-weight: 600; color: var(--text-secondary); }
+        .msg-reply-bar:hover { color: var(--accent); opacity: 1; }
+        .msg-reply-bar .reply-icon { font-size: 13px; flex-shrink: 0; }
+        .msg-reply-bar .reply-author {
+            font-weight: 600;
+            color: var(--text-secondary);
+            flex-shrink: 0;
+        }
         .msg-reply-bar .reply-snippet {
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
-            max-width: 280px;
-            opacity: 0.85;
+            min-width: 0;
+            opacity: 0.9;
         }
+
         .msg-actions {
             position: absolute;
             top: -12px;
@@ -1423,24 +1431,149 @@
         }
 
         // === AI PROMPT HANDLER (kept, minor parent handling) ===
+
+        // Strip markdown fences and extract JSON object from AI output
+        function parseAgentJson(raw) {
+            if (raw == null) throw new Error('empty AI response');
+            var s = String(raw).trim();
+
+            // 1) Direct parse
+            try { return JSON.parse(s); } catch (e1) {}
+
+            // 2) Remove ```json ... ``` or ``` ... ``` fences (anywhere in the string)
+            //    Handles leading prose, trailing prose, and language tags like json/JSON/js
+            var fence = s.match(/```(?:json|JSON|js|javascript)?\s*([\s\S]*?)```/);
+            if (fence && fence[1]) {
+                var inner = fence[1].trim();
+                try { return JSON.parse(inner); } catch (e2) {}
+                // If inner still has issues, fall through to brace extract on inner
+                s = inner;
+            } else {
+                // Strip leading/trailing fence lines if present without a clean match
+                s = s.replace(/^```(?:json|JSON|js|javascript)?\s*/i, '').replace(/\s*```$/i, '').trim();
+                try { return JSON.parse(s); } catch (e3) {}
+            }
+
+            // 3) Extract first { ... last } balanced-ish (greedy outer object)
+            var start = s.indexOf('{');
+            var end = s.lastIndexOf('}');
+            if (start !== -1 && end !== -1 && end > start) {
+                var slice = s.slice(start, end + 1);
+                try { return JSON.parse(slice); } catch (e4) {}
+            }
+
+            throw new Error('Could not parse agent JSON (fences or invalid JSON)');
+        }
+
+        function buildRoomContext(room, limit) {
+            limit = limit || 30;
+            var list = (roomMessages[room] || []).slice().sort(function(a, b) {
+                return (a.time || 0) - (b.time || 0);
+            });
+            var recent = list.slice(-limit);
+            if (recent.length === 0) return 'No context';
+            return recent.map(function(m) {
+                var n = (m.sender && m.sender.name) ? m.sender.name : (typeof m.sender === 'string' ? m.sender : 'unknown');
+                var t = m.time ? new Date(m.time * 1000).toLocaleTimeString() : '';
+                return '[' + t + '] ' + n + ': ' + (m.content || '');
+            }).join('\n');
+        }
+
+        function isBotSenderName(name) {
+            if (!name) return false;
+            var n = String(name).toLowerCase().replace(/^@/, '');
+            return n === 'markovbot' || n === 'gemma-ai' || n === 'gemma' || n === String(BOT_NAME).toLowerCase();
+        }
+
+        // Switch nick → wait → send message(s) → restore user/bot nick
+        // Euphoria applies nick asynchronously; sending immediately often keeps the old name.
+        function withBotNick(connection, botName, doSend, opts) {
+            opts = opts || {};
+            var nickDelay = opts.nickDelay != null ? opts.nickDelay : 280;
+            var restoreDelay = opts.restoreDelay != null ? opts.restoreDelay : 450;
+            if (!connection || connection.readyState !== WebSocket.OPEN) {
+                if (typeof doSend === 'function') doSend();
+                return;
+            }
+            var restoreName = (currentUserName && currentUserName.length > 0) ? currentUserName : BOT_NAME;
+            try {
+                connection.send(JSON.stringify({ type: 'nick', data: { name: botName } }));
+            } catch (e) {}
+            setTimeout(function() {
+                if (connection.readyState !== WebSocket.OPEN) return;
+                try { doSend(); } catch (e2) {}
+                setTimeout(function() {
+                    if (connection.readyState !== WebSocket.OPEN) return;
+                    // Don't clobber an in-progress AI session nick
+                    if (aiBusy && botName === BOT_NAME) return;
+                    try {
+                        connection.send(JSON.stringify({ type: 'nick', data: { name: restoreName } }));
+                    } catch (e3) {}
+                }, restoreDelay);
+            }, nickDelay);
+        }
+
         async function handleAiPrompt(room, sender, text, messageId, connection) {
-            const sys = `You are the smart AI chatbot/Autonomous agent called @Gemma-AI for Euphoria chat room. room name: &${room}. (you are actually child bot of @markovbot, a markovchain bot which is made by @peterforever)
-You MUST reply ONLY with a valid JSON object (no markdown fences) with exactly these keys:
-{
-  "thoughts": "your internal reasoning",
-  "summaryReply": "the short message to post in the room",
-  "outputcommand": "!end || !help @<BOT_NAME> || !tell @<name> <message> || !search <string> || <custom command for anouther bot>"
-}
-Be concise. If you are in a loop return nothing useful and use "!end".
+            // Ignore prompts that originate from our own bots (loop guard)
+            if (isBotSenderName(sender)) {
+                roomLog(room, '⏭ Skipped AI prompt from bot sender: ' + sender);
+                return;
+            }
+
+            const context = buildRoomContext(room, 30);
+            const prompt = (text || '').trim();
+            if (!prompt) return;
+
+            const sys = `
+PREVIOUS CHAT HISTORY:
+${context}
+
+SYSTEM PROMPT:
+
+You are the smart AI chatbot/Autonomous agent called @Gemma-AI for Euphoria chat room. room name: &${room}. (you are actually child bot of @markovbot, a markovchain bot which is made by @peterforever)
+**STRICTLY respond in this JSON format ONLY:**
+  {
+    "thoughts": "Your internal reasoning (not sent to the room)",
+    "summaryReply": "A message to send to the room and user via WebSocket",
+    "outputcommand": "!end || !help @<BOT_NAME> || !tell @<name> <message> || !search <string> || <custom command for anouther bot>"
+  }
+
+!end ends if you have replied to user, !help @<Bot name> gives the help message of the bot, !tell <name> <message> sends a message to person with <name> and the !search <text> command gives a list of matches in previous euphoria chats.
+
+Output command has to be a single command.
+
+DO NOT USE ANY \`\`\` CODE BLOCKS TO ENCIRCLE THE JSON!
+
+EXAMPLE VALID OUTPUT:
+  {
+    "thoughts": "The user asked me to run the \\"!tell @name message\\" command so I will provide a summary and run the command",
+    "summaryReply": "I am going to run the !tell command",
+    "outputcommand": "!tell @name this gets relayed to you!"
+  }
+
+Do not run the same command more than once.
+
+Use the !search <text> command to gain context in Euphoria from chats all the way back.
+
+You are an ai model made by google and the bot is made by @peterforever.
+Users can use "@ai <prompt>" to prompt you.
+User used @ai command to call you.
+Try to answer in 40 words but more if necessary.
+Detect if anouther bot is automatically triggering you or if you are in a loop and return nothing in that case.
 @${sender} is the user who prompted you.
 `;
+
             roomLog(room, `@${sender} prompted: ${text}`);
             aiBusy = true;
+            var willContinue = false;
             try {
-                // Temporarily switch to Gemma-AI only while responding
-                connection.send(JSON.stringify({ type: 'nick', data: { name: "Gemma-AI" } }));
+                if (connection && connection.readyState === WebSocket.OPEN) {
+                    connection.send(JSON.stringify({ type: 'nick', data: { name: "Gemma-AI" } }));
+                    // Let nick settle on Euphoria before any sends
+                    await new Promise(function(r) { setTimeout(r, 280); });
+                }
 
-                const response = await callAI(sys, promptText(text));
+                const response = await callAI(sys, "CHAT HISTORY:\n" + context + "\n\nUSER PROMPT:\n" + prompt);
                 if (!response?.choices?.[0]?.message?.content) {
                     roomLog(room, "❌ No AI response received.");
                     return;
@@ -1449,12 +1582,7 @@ Be concise. If you are in a loop return nothing useful and use "!end".
                 let agentResponse;
                 let rawResponse = response.choices[0].message.content.trim();
                 try {
-                    try {
-                        agentResponse = JSON.parse(rawResponse);
-                    } catch (e) {
-                        let cleaned = rawResponse.replace(/^```json\s*/, '').replace(/^```\s*/, '').replace(/\s*```$/, '');
-                        agentResponse = JSON.parse(cleaned);
-                    }
+                    agentResponse = parseAgentJson(rawResponse);
                     if (
                         typeof agentResponse.thoughts !== "string" ||
                         typeof agentResponse.summaryReply !== "string" ||
@@ -1464,55 +1592,93 @@ Be concise. If you are in a loop return nothing useful and use "!end".
                     }
                 } catch (e) {
                     roomLog(room, `❌ Agent Error: ${e.message}`);
-                    connection.send(JSON.stringify({
-                        type: 'send',
-                        data: {
-                            content: rawResponse + " — generated locally with gemma ai model",
-                            parent: messageId || null
-                        }
-                    }));
+                    if (connection && connection.readyState === WebSocket.OPEN) {
+                        connection.send(JSON.stringify({
+                            type: 'send',
+                            data: {
+                                content: rawResponse + " — generated locally with gemma ai model",
+                                parent: messageId || null
+                            }
+                        }));
+                    }
                     return;
                 }
 
                 roomLog(room, "Gemma-AI internal thoughts: " + agentResponse.thoughts);
-                connection.send(JSON.stringify({
-                    type: 'send',
-                    data: {
-                        content: agentResponse.summaryReply + " — generated locally with gemma ai model",
-                        parent: messageId || null
-                    }
-                }));
 
-                if (agentResponse.outputcommand === "!end" || agentResponse.outputcommand === "") {
-                    // done
-                } else if (agentResponse.outputcommand.toLowerCase().startsWith("!search")) {
-                    handleSearchCommand(room, sender, agentResponse.outputcommand, messageId, connection);
-                } else if (agentResponse.outputcommand.toLowerCase().startsWith("!tell") || agentResponse.outputcommand.toLowerCase().startsWith("!help")) {
+                if (connection && connection.readyState === WebSocket.OPEN) {
                     connection.send(JSON.stringify({
                         type: 'send',
                         data: {
-                            content: agentResponse.outputcommand,
+                            content: agentResponse.summaryReply + " — generated locally with gemma ai model",
                             parent: messageId || null
                         }
                     }));
                 }
-            } catch (err) {
-                roomLog(room, "❌ AI error: " + err.message);
-                connection.send(JSON.stringify({
-                    type: 'send',
-                    data: {
-                        content: "AI error: " + err.message,
-                        parent: messageId || null
+
+                var cmd = (agentResponse.outputcommand || '').trim();
+                if (cmd === "!end" || cmd === "") {
+                    roomLog(room, "Finished replying");
+                    return;
+                }
+
+                if (cmd.toLowerCase().startsWith("!search")) {
+                    var result = handleSearchCommand(room, sender, cmd, messageId, connection);
+                    if (connection && connection.readyState === WebSocket.OPEN) {
+                        connection.send(JSON.stringify({
+                            type: 'send',
+                            data: {
+                                content: "/me — Euphoria searching 🌐",
+                                parent: messageId || null
+                            }
+                        }));
                     }
-                }));
-            } finally {
-                // Restore to markovbot after AI turn
+                    willContinue = true;
+                    setTimeout(function() {
+                        handleAiPrompt(
+                            room,
+                            sender,
+                            'You used !search command which returned ' + result + '. If no more commands are needed to fulfill prompt:"' + text + '", summarize and use !end to exit and do not use ' + cmd + ' command again, just use the output a message and use !end.',
+                            messageId,
+                            connection
+                        );
+                    }, 10000);
+                    return;
+                }
+
+                if (connection && connection.readyState === WebSocket.OPEN) {
+                    connection.send(JSON.stringify({
+                        type: 'send',
+                        data: {
+                            content: cmd,
+                            parent: messageId || null
+                        }
+                    }));
+                }
+
+                willContinue = true;
                 setTimeout(function() {
-                    if (connection.readyState === WebSocket.OPEN) {
-                        connection.send(JSON.stringify({ type: 'nick', data: { name: BOT_NAME } }));
-                    }
-                }, 400);
-                aiBusy = false;
+                    handleAiPrompt(
+                        room,
+                        sender,
+                        'You used ' + cmd + ', if no more commands are needed to fulfill prompt:"' + text + '", summarize and use !end to exit, do not use ' + cmd + ' command again, just use the output a message and use !end.',
+                        messageId,
+                        connection
+                    );
+                }, 10000);
+            } catch (error) {
+                roomLog(room, `AI Error: ${error.message}`);
+            } finally {
+                if (!willContinue) {
+                    setTimeout(function() {
+                        if (connection && connection.readyState === WebSocket.OPEN) {
+                            // restore user nick if set, else bot
+                            var n = (currentUserName && currentUserName.length > 0) ? currentUserName : BOT_NAME;
+                            connection.send(JSON.stringify({ type: 'nick', data: { name: n } }));
+                        }
+                    }, 400);
+                    aiBusy = false;
+                }
             }
         }
 
@@ -1778,7 +1944,7 @@ Be concise. If you are in a loop return nothing useful and use "!end".
   <ol style="padding-left:20px;color:var(--text-secondary);font-size:14px;line-height:1.55;">
     <li>Click <strong>＋</strong> in the left sidebar to join a room (e.g. <code>test</code>).</li>
     <li>Set your display name with the ✎ button (or stay as <code>markovbot</code> for bot mode).</li>
-    <li>Type in the box at the bottom. Use <strong>↩ Reply</strong> on a message to thread a reply.</li>
+    <li>Type in the box at the bottom. Use <strong>↩ Reply</strong> to reply to a message, or <strong>↩ Inline</strong> to share the same parent (sibling in the thread). Enter = new line; Ctrl+Enter or Send to post. Reply target stays until you hit ✕.</li>
     <li>Click <strong>users(N)</strong> at the top to see who’s online; click a name to insert <code>@name</code>.</li>
   </ol>
 
@@ -2230,35 +2396,21 @@ Be concise. If you are in a loop return nothing useful and use "!end".
             var initial = (name[0] || '?').toUpperCase();
             var timeStr = msg.time ? new Date(msg.time * 1000).toLocaleTimeString() : '';
 
-            // Build parent chain from cache (sorted by time); missing parents filled via get-message async
+            // Simple reply pointer only (no highlighted chain block)
             var replyHtml = '';
             if (msg.parent) {
-                var chain = [];
-                var cur = msg.parent;
-                var guard = 0;
-                while (cur && guard < 30) {
-                    guard++;
-                    var pmsg = messageIndex[room] && messageIndex[room][cur];
-                    if (!pmsg) break;
-                    chain.push(pmsg);
-                    cur = pmsg.parent || null;
-                }
-                chain.sort(function(a, b) { return (a.time || 0) - (b.time || 0); });
-                if (chain.length > 0) {
-                    var items = chain.map(function(pm) {
-                        var pn = (pm.sender && pm.sender.name) ? pm.sender.name : (typeof pm.sender === 'string' ? pm.sender : 'unknown');
-                        var pt = pm.time ? new Date(pm.time * 1000).toLocaleTimeString() : '';
-                        var pc = (pm.content || '').substring(0, 100) + ((pm.content || '').length > 100 ? '…' : '');
-                        return '<div class="thread-chain-item" onclick="scrollToMessage(\'' + pm.id + '\')">' +
-                            '<span class="tc-author">' + escapeHtml(pn) + '</span>' +
-                            escapeHtml(pc) +
-                            '<span class="tc-time">' + escapeHtml(pt) + '</span></div>';
-                    }).join('');
-                    replyHtml = '<div class="thread-chain">' + items + '</div>';
+                var parentSnippet = getParentSnippet(room, msg.parent);
+                if (parentSnippet) {
+                    var snip = (parentSnippet.content || '').substring(0, 72);
+                    if ((parentSnippet.content || '').length > 72) snip += '…';
+                    replyHtml = '<div class="msg-reply-bar" onclick="scrollToMessage(\'' + parentSnippet.id + '\')" title="' +
+                        escapeHtml(parentSnippet.sender + ': ' + (parentSnippet.content || '')).replace(/"/g, '&quot;') + '">' +
+                        '<span class="reply-icon">↩</span>' +
+                        '<span class="reply-author">' + escapeHtml(parentSnippet.sender) + '</span>' +
+                        '<span class="reply-snippet">' + escapeHtml(snip) + '</span></div>';
                 } else {
-                    replyHtml = '<div class="msg-reply-bar"><span class="reply-icon">↩</span>' +
-                        '<span class="reply-snippet">reply to ' + escapeHtml(String(msg.parent).substring(0, 12)) + '…</span></div>';
-                    // async fill
+                    replyHtml = '<div class="msg-reply-bar" title="reply"><span class="reply-icon">↩</span></div>';
+                    // Resolve parent in background, then refresh this message row
                     fetchParentChain(room, msg.parent).then(function() {
                         if (activeTab === room) {
                             var existing = document.getElementById('msg-' + msg.id);
@@ -2289,14 +2441,22 @@ Be concise. If you are in a loop return nothing useful and use "!end".
                         <div class="msg-content">${linkifyAndHotlink(msg.content || '')}</div>
                     </div>
                     <div class="msg-actions">
-                        <button class="reply-btn" title="Reply">↩ Reply</button>
+                        <button class="reply-btn" title="Reply to this message">↩ Reply</button>
+                        <button class="reply-inline-btn" title="Reply in same thread (share parent)">↩ Inline</button>
                         <a class="view-link" href="${buildEuphoriaViewUrl(room, msg.content || '')}" target="_blank" rel="noopener" title="Open on Euphoria">↗ View</a>
                     </div>`;
                 var replyBtn = el.querySelector('.reply-btn');
                 if (replyBtn) {
                     replyBtn.addEventListener('click', function(ev) {
                         ev.stopPropagation();
-                        setReply(msg.id, name, msg.content || '');
+                        setReply(msg.id, name, msg.content || '', 'reply');
+                    });
+                }
+                var inlineBtn = el.querySelector('.reply-inline-btn');
+                if (inlineBtn) {
+                    inlineBtn.addEventListener('click', function(ev) {
+                        ev.stopPropagation();
+                        setReply(msg.id, name, msg.content || '', 'inline');
                     });
                 }
             }
@@ -2313,23 +2473,49 @@ Be concise. If you are in a loop return nothing useful and use "!end".
         }
 
         // === REPLY HANDLING (parent is temporary, never localStorage) ===
-        function setReply(id, sender, content) {
-            // Always coerce to strings — never store objects
+        function setReply(id, sender, content, mode) {
+            // mode: 'reply' = parent is this message id
+            // mode: 'inline' = parent is this message's parent (sibling); if null, fall back to this message
+            mode = mode || 'reply';
             var senderStr = (sender && typeof sender === 'object' && sender.name) ? sender.name : String(sender || 'unknown');
             var contentStr = (content == null) ? '' : String(content);
+            var room = activeTab;
+            var parentId = id;
+            var labelPrefix = 'Replying to ';
+
+            if (mode === 'inline') {
+                var src = (messageIndex[room] && messageIndex[room][id]) ? messageIndex[room][id] : null;
+                var sharedParent = src && src.parent ? src.parent : null;
+                if (sharedParent) {
+                    parentId = sharedParent;
+                    labelPrefix = 'Inline reply in thread of ';
+                    // Prefer showing the root/parent snippet for the bar
+                    var psnip = getParentSnippet(room, sharedParent);
+                    if (psnip) {
+                        senderStr = psnip.sender;
+                        contentStr = psnip.content;
+                    }
+                } else {
+                    // parent is null → same as normal reply to this message
+                    parentId = id;
+                    labelPrefix = 'Replying to ';
+                }
+            }
+
             pendingParent = {
-                id: id,
+                id: parentId,
                 sender: senderStr,
                 content: contentStr,
-                room: activeTab
+                room: room,
+                mode: mode,
+                clickedId: id
             };
             var bar = document.getElementById('replyComposer');
             if (bar) bar.classList.add('visible');
             var info = document.getElementById('replyInfo');
             if (info) {
-                info.textContent = 'Replying to ' + senderStr + ': ' + contentStr.substring(0, 60) + (contentStr.length > 60 ? '…' : '');
+                info.textContent = labelPrefix + senderStr + ': ' + contentStr.substring(0, 60) + (contentStr.length > 60 ? '…' : '');
             }
-            // Ensure composer is visible when replying
             var composer = document.getElementById('composer');
             if (composer) composer.style.display = 'block';
             var input = document.getElementById('composerInput');
@@ -2338,8 +2524,10 @@ Be concise. If you are in a loop return nothing useful and use "!end".
 
         function clearReply() {
             pendingParent = null;
-            document.getElementById('replyComposer').classList.remove('visible');
-            document.getElementById('replyInfo').textContent = '';
+            var bar = document.getElementById('replyComposer');
+            if (bar) bar.classList.remove('visible');
+            var info = document.getElementById('replyInfo');
+            if (info) info.textContent = '';
         }
 
         // === COMPOSER ===
@@ -2349,7 +2537,8 @@ Be concise. If you are in a loop return nothing useful and use "!end".
         }
 
         function composerKey(e) {
-            if (e.key === 'Enter' && !e.shiftKey) {
+            // Enter = new line only. Ctrl+Enter or Cmd+Enter sends.
+            if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
                 e.preventDefault();
                 sendMessage();
             }
@@ -2367,28 +2556,22 @@ Be concise. If you are in a loop return nothing useful and use "!end".
                 return;
             }
 
-            // Always use the user's chosen name (or markovbot if none set)
             var nick = (currentUserName && currentUserName.length > 0) ? currentUserName : BOT_NAME;
 
-            // Build send payload — parent only if we are replying
             var data = { content: text };
+            // Keep using pendingParent until user closes the reply bar
             if (pendingParent && pendingParent.id && pendingParent.room === activeTab) {
                 data.parent = pendingParent.id;
             }
-            // parent is omitted (null) when sending to the room root — correct per API
 
-            // Switch nick only for this send if needed, then optionally restore bot
             connection.send(JSON.stringify({ type: 'nick', data: { name: nick } }));
             connection.send(JSON.stringify({ type: 'send', data: data }));
 
             roomLog(activeTab, `SENT as ${nick}${data.parent ? ' (reply)' : ''}: ${text}`);
 
-            // If user is not the bot, keep the user nick (do not force back to markovbot unless they choose)
-            // Only AI / markov command paths temporarily switch to Gemma-AI / markovbot.
-
             document.getElementById('composerInput').value = '';
             autoResize(document.getElementById('composerInput'));
-            clearReply();
+            // Do NOT clearReply — keep same parent until ✕ is clicked
         }
 
         // === NOTIFY LIST ===
@@ -2466,7 +2649,7 @@ Be concise. If you are in a loop return nothing useful and use "!end".
                     // Jump to room and set reply
                     if (connections[m.room]) {
                         switchTab(m.room);
-                        setReply(m.id, m.sender, m.text);
+                        setReply(m.id, m.sender, m.text, 'reply');
                     }
                 };
                 item.innerHTML = `
@@ -2612,62 +2795,71 @@ Be concise. If you are in a loop return nothing useful and use "!end".
                         }).catch(function() {});
                     }
 
-                    // Bot command handling (same as original)
+                    // Bot command handling
                     var text = msg.content || '';
                     var lowerText = text.toLowerCase();
+                    var senderName = (msg.sender && msg.sender.name) ? msg.sender.name : '';
+                    var fromOwnBot = isBotSenderName(senderName);
+
+                    // Never let markovbot / Gemma-AI messages re-trigger AI or bot commands (loop guard)
+                    if (fromOwnBot) {
+                        return;
+                    }
+
                     var isMentioned = (lowerText.indexOf('@' + BOT_NAME) !== -1) ||
                                       (lowerText.indexOf('@markovbot') !== -1);
 
                     // @ai / @Gemma-AI prompt
                     if (lowerText.indexOf('@ai') !== -1 || lowerText.indexOf('@gemma-ai') !== -1 || lowerText.indexOf('@gemma') !== -1) {
                         if (!aiBusy) {
-                            handleAiPrompt(roomName, msg.sender.name, text, data.id, ws);
+                            handleAiPrompt(roomName, senderName, text, data.id, ws);
                         }
-                    }
-
-                    if (lowerText.indexOf('!markov') !== 0 && !isMentioned) {
-                        // still allow other commands when mentioned
                     }
 
                     if (lowerText.includes("!help @markovbot") || (isMentioned && lowerText.includes('!help'))) {
                         if (ws.readyState === WebSocket.OPEN) {
-                            ws.send(JSON.stringify({
-                                type: 'send',
-                                data: {
-                                    content: "@markovbot: Markov chain bot (n-gram 1-4) with !markov <seed>. AI Chatbot with @ai <prompt>. Euphoria chat search engine with !search <phrase>. Web app: https://peterforevergit.github.io/MBE/webapp/ | Maker: @peterforever + vibe coding| Commands: !help, !ping, !markov, @ai, !search",
-                                    parent: data.id
+                            withBotNick(ws, BOT_NAME, function() {
+                                ws.send(JSON.stringify({
+                                    type: 'send',
+                                    data: {
+                                        content: "@markovbot: Markov chain bot (n-gram 1-4) with !markov <seed>. AI Chatbot with @ai <prompt>. Euphoria chat search engine with !search <phrase>. Web app: https://peterforevergit.github.io/MBE/webapp/ | Maker: @peterforever + vibe coding| Commands: !help, !ping, !markov, @ai, !search",
+                                        parent: data.id
+                                    }
+                                }));
+                            });
+                            // Start AI after markovbot nick cycle finishes to avoid nick races
+                            setTimeout(function() {
+                                if (!aiBusy) {
+                                    handleAiPrompt(roomName, senderName, "explain who you are and how to use @ai command", data.id, ws);
                                 }
-                            }));
-                            handleAiPrompt(roomName, msg.sender.name, "explain who you are and how to use @ai command", data.id, ws);
+                            }, 900);
                         }
                     }
                     if (lowerText === '!ping' || (isMentioned && lowerText.indexOf('!ping') !== -1)) {
                         if (ws.readyState === WebSocket.OPEN) {
-                            ws.send(JSON.stringify({ type: 'send', data: { content: "pong! 🏓", parent: data.id } }));
+                            withBotNick(ws, BOT_NAME, function() {
+                                ws.send(JSON.stringify({ type: 'send', data: { content: "pong! 🏓", parent: data.id } }));
+                            });
                         }
                     }
                     if (lowerText.indexOf('!markov') === 0 || (isMentioned && lowerText.indexOf('!markov') !== -1)) {
                         var seed = lowerText.replace('!markov', '').replace('@' + BOT_NAME, '').replace('@markovbot', '').trim();
                         var reply = generate(seed);
                         if (ws.readyState === WebSocket.OPEN) {
-                            // Temporarily ensure bot name for markov reply
-                            ws.send(JSON.stringify({ type: 'nick', data: { name: BOT_NAME } }));
-                            ws.send(JSON.stringify({ type: 'send', data: { content: reply, parent: data.id } }));
-                            // Restore user nick after
-                            setTimeout(function() {
-                                if (ws.readyState === WebSocket.OPEN) {
-                                    var n = (currentUserName && currentUserName.length > 0) ? currentUserName : BOT_NAME;
-                                    ws.send(JSON.stringify({ type: 'nick', data: { name: n } }));
-                                }
-                            }, 400);
+                            withBotNick(ws, BOT_NAME, function() {
+                                ws.send(JSON.stringify({ type: 'send', data: { content: reply, parent: data.id } }));
+                            });
                         }
                         roomLog(roomName, "REPLIED (markov): " + reply);
                     }
                     if (lowerText.includes("!aicommand")) {
-                        handleAiPrompt(roomName, msg.sender.name, text + " This is a special command, you have to use minimum words to say what you think is the right answer to the command, for example '!aicommand 8ball' -> 'Cloudy...' and '!aicommand coin' -> 'heads' and '!aicommand 2*3' -> '6'", data.id, ws);
+                        handleAiPrompt(roomName, senderName, text + " This is a special command, you have to use minimum words to say what you think is the right answer to the command, for example '!aicommand 8ball' -> 'Cloudy...' and '!aicommand coin' -> 'heads' and '!aicommand 2*3' -> '6'", data.id, ws);
                     }
                     if (lowerText.indexOf('!search') === 0 || (isMentioned && lowerText.indexOf('!search') !== -1)) {
-                        handleSearchCommand(roomName, msg.sender.name, text, data.id, ws);
+                        // Search replies as markovbot
+                        withBotNick(ws, BOT_NAME, function() {
+                            handleSearchCommand(roomName, msg.sender.name, text, data.id, ws);
+                        });
                     }
                     return;
                 }
