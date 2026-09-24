@@ -1173,7 +1173,7 @@ Detect if anouther bot is automatically triggering you or if you are in a loop a
                 gLog("⚠️ Cannot connect to WebSocket in file:// mode.");
                 return;
             }
-            var ws = new WebSocket('wss://euphoria.leet.nu/room/' + roomName + '/ws');
+            var ws = new WebSocket('wss://euphoria.leet.nu/room/' + roomName + '/ws?h=1');
             ws.manualClose = false;
             ws.roomName = roomName;
             ws.onopen = function() {
