@@ -989,7 +989,7 @@
         var currentUserName = BOT_NAME;
         var aiBusy = false;
         var chatRecords = {};
-        var isFileProtocol = window.location.protocol === 'file:';
+        var isFileProtocol = false;
         var roomMessages = {};          // roomName -> array of message objects (in-memory only)
         var pendingParent = null;       // { id, sender, content, room } — temporary, never localStorage
         var unreadCounts = {};          // roomName -> number
