@@ -1,13 +1,16 @@
 # MBE
-Markov chain bot called MarkovBot [euphoria.leet.nu](https://euphoria.leet.nu/room/xkcd)
+Originally a markov chain bot called MarkovBot [euphoria.leet.nu](https://euphoria.leet.nu/room/xkcd)
 a great chat room!
 
-## More functions?
+Still a markov chain bot but now **MUCH MORE FUNCTIONS**
 
 It is also a:
-- ai connector to euphoria (with mistral ai key)
+- ai connector to euphoria (with localhost support)
 - **alternative frontend** to euphoria
 - local history of euphoria
+- search engine for euphoria chats
+
+![image](https://snipboard.io/nx6pbd.jpg)
 
 ## Works?
 **yes** with the web app.
